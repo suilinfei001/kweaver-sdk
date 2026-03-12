@@ -1,0 +1,127 @@
+"""E2E: knowledge network build flow (datasource → dataview → KN → build).
+
+These tests create and delete knowledge networks, so they are marked as
+destructive and require ``--run-destructive`` to run.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from kweaver import ADPClient
+
+pytestmark = [pytest.mark.e2e, pytest.mark.destructive]
+
+
+def test_dataview_create_from_table(
+    create_datasource, adp_client: ADPClient,
+):
+    """Create a dataview from a real table."""
+    ds = create_datasource(name="e2e_dv_test")
+    tables = adp_client.datasources.list_tables(ds.id)
+    assert len(tables) > 0
+
+    dv = adp_client.dataviews.create(
+        name=f"e2e_dv_{tables[0].name}",
+        datasource_id=ds.id,
+        table=tables[0].name,
+    )
+    assert dv.id
+    assert dv.name
+
+    # Cleanup
+    adp_client.dataviews.delete(dv.id)
+
+
+def test_build_knowledge_network(
+    create_datasource,
+    create_knowledge_network,
+    adp_client: ADPClient,
+):
+    """Full build: datasource → dataview → KN → object type → build."""
+    # 1. Datasource and table discovery
+    ds = create_datasource(name="e2e_build_test")
+    tables = adp_client.datasources.list_tables(ds.id)
+    assert len(tables) > 0
+    table = tables[0]
+
+    # 2. Create dataview
+    dv = adp_client.dataviews.create(
+        name=f"e2e_build_{table.name}",
+        datasource_id=ds.id,
+        table=table.name,
+    )
+
+    try:
+        # 3. Create knowledge network
+        kn = create_knowledge_network(name="e2e_build_kn")
+
+        # 4. Create object type — pick first suitable column as PK
+        pk_col = table.columns[0].name
+        ot = adp_client.object_types.create(
+            kn.id,
+            name=f"e2e_{table.name}",
+            dataview_id=dv.id,
+            primary_keys=[pk_col],
+            display_key=pk_col,
+        )
+        assert ot.id
+        assert ot.name
+
+        # 5. Build and wait
+        status = adp_client.knowledge_networks.build(kn.id).wait(timeout=120)
+        assert status.state in ("completed", "failed")
+
+        # 6. Verify object types are listed
+        ots = adp_client.object_types.list(kn.id)
+        assert any(o.id == ot.id for o in ots)
+
+    finally:
+        adp_client.dataviews.delete(dv.id)
+
+
+def test_build_with_relation(
+    create_datasource,
+    create_knowledge_network,
+    adp_client: ADPClient,
+):
+    """Build with two tables and a relation between them."""
+    ds = create_datasource(name="e2e_rel_test")
+    tables = adp_client.datasources.list_tables(ds.id)
+    if len(tables) < 2:
+        pytest.skip("Need at least 2 tables for relation test")
+
+    t1, t2 = tables[0], tables[1]
+    dv1 = adp_client.dataviews.create(name=f"e2e_rel_{t1.name}", datasource_id=ds.id, table=t1.name)
+    dv2 = adp_client.dataviews.create(name=f"e2e_rel_{t2.name}", datasource_id=ds.id, table=t2.name)
+
+    try:
+        kn = create_knowledge_network(name="e2e_rel_kn")
+
+        ot1 = adp_client.object_types.create(
+            kn.id, name=f"e2e_{t1.name}", dataview_id=dv1.id,
+            primary_keys=[t1.columns[0].name], display_key=t1.columns[0].name,
+        )
+        ot2 = adp_client.object_types.create(
+            kn.id, name=f"e2e_{t2.name}", dataview_id=dv2.id,
+            primary_keys=[t2.columns[0].name], display_key=t2.columns[0].name,
+        )
+
+        # Create a direct relation using first column of each
+        rt = adp_client.relation_types.create(
+            kn.id,
+            name=f"e2e_{t1.name}_{t2.name}",
+            source_ot_id=ot1.id,
+            target_ot_id=ot2.id,
+            mappings=[(t1.columns[0].name, t2.columns[0].name)],
+        )
+        assert rt.id
+
+        rts = adp_client.relation_types.list(kn.id)
+        assert any(r.id == rt.id for r in rts)
+
+    finally:
+        adp_client.dataviews.delete(dv1.id)
+        adp_client.dataviews.delete(dv2.id)
