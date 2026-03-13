@@ -1,4 +1,4 @@
-"""KWeaver SDK — Agent-oriented skills for ADP knowledge networks."""
+"""KWeaver SDK — CLI and client library for ADP knowledge networks."""
 
 from kweaver._auth import ConfigAuth, OAuth2Auth, OAuth2BrowserAuth, PasswordAuth, TokenAuth
 from kweaver._client import ADPClient
