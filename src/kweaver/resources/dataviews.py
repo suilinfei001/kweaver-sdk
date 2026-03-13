@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import logging
+import time
+import uuid
 from typing import TYPE_CHECKING, Any
 
+logger = logging.getLogger(__name__)
+
+from kweaver._errors import ADPError
 from kweaver.types import DataView, ViewField
 
 if TYPE_CHECKING:
@@ -14,6 +21,40 @@ class DataViewsResource:
     def __init__(self, http: HttpClient) -> None:
         self._http = http
 
+    def find_by_table(
+        self,
+        datasource_id: str,
+        table_name: str,
+        *,
+        wait: bool = True,
+        timeout: float = 10,
+    ) -> DataView | None:
+        """Find the auto-created atomic view for a table in a datasource.
+
+        Atomic views are created asynchronously by a background monitor
+        after a metadata scan.  If *wait* is True, polls until the view
+        appears or *timeout* expires.
+        """
+        deadline = time.monotonic() + timeout
+        attempt = 0
+        while True:
+            attempt += 1
+            data = self._http.get(
+                "/api/mdl-data-model/v1/data-views",
+                params={"data_source_id": datasource_id, "limit": -1},
+            )
+            items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
+            logger.debug(
+                "find_by_table attempt=%d ds=%s table=%r found=%d",
+                attempt, datasource_id, table_name, len(items),
+            )
+            for d in items:
+                if d.get("name") == table_name:
+                    return _parse_single_dataview(d)
+            if not wait or time.monotonic() >= deadline:
+                return None
+            time.sleep(5)
+
     def create(
         self,
         name: str,
@@ -22,41 +63,97 @@ class DataViewsResource:
         table: str | None = None,
         sql: str | None = None,
         fields: list[dict[str, Any]] | None = None,
+        columns: list[Any] | None = None,
     ) -> DataView:
+        """Create or find a data view.
+
+        For table-based views: returns the auto-created atomic view from
+        metadata scan (triggering a scan if needed).
+        For SQL views: creates a custom view.
+        """
         if table:
-            view_type = "atomic"
-            scope_type = "source"
-            config = {"table": table}
-            title = table
-        elif sql:
-            view_type = "custom"
-            scope_type = "sql"
-            config = {"sql": sql}
-            title = name
+            # Try to find existing atomic view first (created by background monitor)
+            existing = self.find_by_table(datasource_id, table)
+            if existing:
+                return existing
+            # Atomic view not ready yet — create it directly
+            logger.info("No atomic view for table %r, creating directly", table)
+            view_id = hashlib.md5(
+                f"{datasource_id}:{table}".encode()
+            ).hexdigest()[:35]
+            # Build fields from columns metadata if available
+            view_fields = fields or []
+            if not view_fields and columns:
+                view_fields = [
+                    {"name": c.name if hasattr(c, "name") else c.get("name", ""),
+                     "type": c.type if hasattr(c, "type") else c.get("type", "varchar")}
+                    for c in columns
+                ]
+            body = [
+                {
+                    "id": view_id,
+                    "name": name,
+                    "technical_name": table,
+                    "type": "atomic",
+                    "query_type": "SQL",
+                    "data_source_id": datasource_id,
+                    "group_id": datasource_id,
+                    "fields": view_fields,
+                }
+            ]
+            for attempt in range(3):
+                try:
+                    data = self._http.post("/api/mdl-data-model/v1/data-views", json=body)
+                    created_id = _extract_view_id(data) or view_id
+                    return self.get(created_id)
+                except ADPError as exc:
+                    if "Existed" not in (exc.error_code or ""):
+                        raise
+                    if attempt == 2:
+                        # Last resort: return whatever exists with this name
+                        views = self.list(name=name)
+                        if views:
+                            return views[0]
+                        raise
+                    # Retry with a unique name suffix
+                    suffix = uuid.uuid4().hex[:6]
+                    unique_name = f"{name}_{suffix}"
+                    view_id = hashlib.md5(
+                        f"{datasource_id}:{unique_name}".encode()
+                    ).hexdigest()[:35]
+                    body[0]["id"] = view_id
+                    body[0]["name"] = unique_name
+                    name = unique_name
+        if sql:
+            # Generate a deterministic view ID (lowercase, max 40 chars)
+            view_id = "dv_" + hashlib.md5(
+                f"{datasource_id}:{name}".encode()
+            ).hexdigest()[:32]
+            body = [
+                {
+                    "id": view_id,
+                    "name": name,
+                    "type": "custom",
+                    "query_type": "SQL",
+                    "data_source_id": datasource_id,
+                    "data_scope": [
+                        {
+                            "id": "node_0",
+                            "title": name,
+                            "type": "sql",
+                            "config": {"sql_expression": sql},
+                            "input_nodes": [],
+                            "output_fields": [],
+                        }
+                    ],
+                    "fields": fields or [],
+                }
+            ]
+            data = self._http.post("/api/mdl-data-model/v1/data-views", json=body)
+            created_id = _extract_view_id(data) or view_id
+            return self.get(created_id)
         else:
             raise ValueError("Either 'table' or 'sql' must be provided")
-
-        body = [
-            {
-                "name": name,
-                "type": view_type,
-                "query_type": "SQL",
-                "data_source_id": datasource_id,
-                "data_scope": [
-                    {
-                        "id": "node_0",
-                        "title": title,
-                        "type": scope_type,
-                        "config": config,
-                        "input_nodes": [],
-                        "output_fields": [],
-                    }
-                ],
-                "fields": fields or [],
-            }
-        ]
-        data = self._http.post("/api/mdl-data-model/v1/data-views", json=body)
-        return _parse_dataview(data)
 
     def list(
         self,
@@ -65,29 +162,38 @@ class DataViewsResource:
         name: str | None = None,
         type: str | None = None,
     ) -> list[DataView]:
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = {"limit": -1}
         if datasource_id:
             params["data_source_id"] = datasource_id
         if name:
-            params["name"] = name
+            params["keyword"] = name
         if type:
             params["type"] = type
-        data = self._http.get("/api/mdl-data-model/v1/data-views", params=params or None)
+        data = self._http.get("/api/mdl-data-model/v1/data-views", params=params)
         items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
         return [_parse_single_dataview(d) for d in items]
 
     def get(self, id: str) -> DataView:
         data = self._http.get(f"/api/mdl-data-model/v1/data-views/{id}")
+        if isinstance(data, list):
+            data = data[0]
         return _parse_single_dataview(data)
 
     def delete(self, id: str) -> None:
         self._http.delete(f"/api/mdl-data-model/v1/data-views/{id}")
 
 
-def _parse_dataview(data: Any) -> DataView:
-    if isinstance(data, list):
-        data = data[0]
-    return _parse_single_dataview(data)
+def _extract_view_id(data: Any) -> str | None:
+    """Extract the first view ID from a create response (which may be IDs only)."""
+    if isinstance(data, list) and data:
+        item = data[0]
+        if isinstance(item, str):
+            return item
+        if isinstance(item, dict):
+            return str(item.get("id", ""))
+    if isinstance(data, dict):
+        return str(data.get("id", ""))
+    return None
 
 
 def _parse_single_dataview(d: dict[str, Any]) -> DataView:
@@ -95,6 +201,7 @@ def _parse_single_dataview(d: dict[str, Any]) -> DataView:
         id=str(d.get("id", "")),
         name=d.get("name", ""),
         query_type=d.get("query_type", "SQL"),
+        datasource_id=str(d.get("data_source_id", "")),
         fields=[
             ViewField(
                 name=f["name"],

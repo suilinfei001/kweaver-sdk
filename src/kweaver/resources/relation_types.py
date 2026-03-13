@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from kweaver._errors import ADPError
 from kweaver.types import RelationType
 
 if TYPE_CHECKING:
@@ -66,15 +67,26 @@ class RelationTypesResource:
                 for s, t in (mappings or [])
             ]
 
-        data = self._http.post(
-            f"{_PREFIX}/knowledge-networks/{kn_id}/relation-types",
-            json={"entries": [entry]},
-        )
-        items = data if isinstance(data, list) else data.get("entries", data.get("data", [data]))
-        return _parse_relation_type(items[0], kn_id)
+        try:
+            data = self._http.post(
+                f"{_PREFIX}/knowledge-networks/{kn_id}/relation-types",
+                json={"entries": [entry], "branch": "main"},
+            )
+            items = data if isinstance(data, list) else data.get("entries", data.get("data", [data]))
+            return _parse_relation_type(items[0], kn_id)
+        except ADPError as exc:
+            if "Existed" in (exc.error_code or ""):
+                existing = self.list(kn_id)
+                for rt in existing:
+                    if rt.name == name:
+                        return rt
+            raise
 
-    def list(self, kn_id: str) -> list[RelationType]:
-        data = self._http.get(f"{_PREFIX}/knowledge-networks/{kn_id}/relation-types")
+    def list(self, kn_id: str, *, branch: str = "main") -> list[RelationType]:
+        data = self._http.get(
+            f"{_PREFIX}/knowledge-networks/{kn_id}/relation-types",
+            params={"limit": -1, "branch": branch},
+        )
         items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
         return [_parse_relation_type(d, kn_id) for d in items]
 

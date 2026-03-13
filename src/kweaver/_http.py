@@ -123,6 +123,11 @@ class HttpClient:
                 time.sleep(_BACKOFF_BASE * (2**attempt))
                 continue
 
+            if resp.status_code >= 400:
+                logger.warning(
+                    "HTTP %d %s %s -> %s",
+                    resp.status_code, method, path, resp.text[:500],
+                )
             raise_for_status(resp)
 
             if resp.status_code == 204 or not resp.content:

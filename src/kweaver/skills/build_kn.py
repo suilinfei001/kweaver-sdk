@@ -36,6 +36,7 @@ class BuildKnSkill(BaseSkill):
         for t in tables:
             dv = self.client.dataviews.create(
                 name=t.name, datasource_id=datasource_id, table=t.name,
+                columns=t.columns,
             )
             view_map[t.name] = dv.id
 

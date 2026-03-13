@@ -1,27 +1,54 @@
 ---
 name: kweaver
 description: 操作 ADP 知识网络与 Decision Agent — 连接数据库、构建知识网络、查询 Schema/实例、语义搜索、列举 Agent、与 Agent 对话。当用户提到"知识网络"、"知识图谱"、"连接数据库并建模"、"查询对象类"、"有哪些 Agent"、"跟 Agent 对话"等意图时自动使用。
-allowed-tools: Bash(python *)
+allowed-tools: Bash(python *), Bash(${KWEAVER_PYTHON:-python} *)
 argument-hint: [自然语言指令]
+requires:
+  env: [ADP_BASE_URL, ADP_BUSINESS_DOMAIN, ADP_TOKEN, ADP_USERNAME, ADP_PASSWORD]
+  bins: [python]
 ---
 
 # KWeaver — ADP 知识网络与 Decision Agent 技能
 
 你可以通过 kweaver SDK 操作 ADP 平台的知识网络和 Decision Agent。根据用户意图选择合适的操作。
 
-## 环境准备
+## 环境准备（严格遵守，不要修改任何参数）
+
+**重要规则**:
+1. 如果环境变量 `KWEAVER_PYTHON` 已设置，用它作为 Python 解释器路径；否则用 `python`
+2. 客户端初始化代码必须**原样复制**，不要修改参数名或尝试其他值
+3. `ADP_BUSINESS_DOMAIN` 如果已设置则必须传入，不要自行猜测或枚举其他值
+4. **所有环境变量已预配置，直接执行代码即可。禁止提前检查环境变量是否存在，禁止询问用户提供密码或 Token。**
+
+执行方式：写成 Python 脚本文件或 inline，通过 Bash 调用：
+`${KWEAVER_PYTHON:-python} -c '<code>'`
+
+**客户端初始化（直接复制使用，禁止修改）**:
 
 ```python
-from kweaver import ADPClient, TokenAuth
+import os
+from kweaver import ADPClient, TokenAuth, PasswordAuth
 from kweaver.skills import (
     ConnectDbSkill, BuildKnSkill, LoadKnContextSkill, QueryKnSkill,
     DiscoverAgentsSkill, ChatAgentSkill,
 )
 
-client = ADPClient(base_url="$ADP_BASE_URL", auth=TokenAuth("$ADP_TOKEN"))
-```
+# 优先用 PasswordAuth（自动刷新 Token），fallback 到 TokenAuth
+username = os.environ.get("ADP_USERNAME")
+password = os.environ.get("ADP_PASSWORD")
+base_url = os.environ["ADP_BASE_URL"]
 
-环境变量 `ADP_BASE_URL` 和 `ADP_TOKEN` 必须已设置。
+if username and password:
+    auth = PasswordAuth(base_url, username, password)
+else:
+    auth = TokenAuth(os.environ["ADP_TOKEN"])
+
+client = ADPClient(
+    base_url=base_url,
+    auth=auth,
+    business_domain=os.environ["ADP_BUSINESS_DOMAIN"],
+)
+```
 
 ---
 
@@ -182,3 +209,5 @@ result = skill.run(mode="history", conversation_id="<id>", limit=50)
 - 不要向用户暴露 dataview_id、ot_id 等内部 ID，用名称展示即可。
 - 构建知识网络(build_kn)可能需要等待一段时间，提前告知用户。
 - chat_agent 的 ask 模式会自动创建会话，返回的 conversation_id 用于多轮续接。
+- **不要自行猜测或枚举 business_domain 值**，只使用环境变量中配置的值。
+- 如果 API 返回 "Bad Request"，最常见原因是 Token 过期或 business_domain 未设置。

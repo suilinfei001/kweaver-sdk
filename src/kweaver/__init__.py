@@ -1,6 +1,6 @@
 """KWeaver SDK — Agent-oriented skills for ADP knowledge networks."""
 
-from kweaver._auth import OAuth2Auth, TokenAuth
+from kweaver._auth import OAuth2Auth, PasswordAuth, TokenAuth
 from kweaver._client import ADPClient
 from kweaver._errors import (
     ADPError,
@@ -16,6 +16,7 @@ from kweaver._errors import (
 __all__ = [
     "ADPClient",
     "TokenAuth",
+    "PasswordAuth",
     "OAuth2Auth",
     "ADPError",
     "AuthenticationError",

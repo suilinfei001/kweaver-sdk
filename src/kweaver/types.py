@@ -40,6 +40,7 @@ class DataView(BaseModel):
     id: str
     name: str
     query_type: str
+    datasource_id: str = ""
     fields: list[ViewField] = []
 
 

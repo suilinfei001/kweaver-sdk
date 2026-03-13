@@ -110,4 +110,7 @@ def test_create_without_properties_sends_empty(capture: RequestCapture):
         primary_keys=["id"], display_key="name",
     )
     body = capture.last_body()
-    assert body["entries"][0]["data_properties"] == []
+    # Auto-generated from primary_keys + display_key
+    prop_names = {p["name"] for p in body["entries"][0]["data_properties"]}
+    assert "id" in prop_names
+    assert "name" in prop_names

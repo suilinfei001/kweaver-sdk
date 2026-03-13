@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
+from kweaver._errors import ADPError
 from kweaver.types import DataProperty, ObjectType, ObjectTypeStatus, Property
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from kweaver._http import HttpClient
@@ -41,18 +45,39 @@ class ObjectTypesResource:
         }
         if properties is not None:
             entry["data_properties"] = [_property_to_rest(p) for p in properties]
-        else:
-            entry["data_properties"] = []
+        # If no explicit properties, auto-generate from primary/display keys
+        # The OT service validates PKs exist in data_properties with a valid type
+        if not entry.get("data_properties"):
+            auto_props = set(primary_keys)
+            auto_props.add(display_key)
+            entry["data_properties"] = [
+                {"name": n, "display_name": n, "type": "string"} for n in auto_props
+            ]
 
-        data = self._http.post(
+        try:
+            data = self._http.post(
+                f"{_PREFIX}/knowledge-networks/{kn_id}/object-types",
+                json={"entries": [entry], "branch": "main"},
+            )
+            items = data if isinstance(data, list) else data.get("entries", data.get("data", [data]))
+            return _parse_object_type(items[0], kn_id)
+        except ADPError as exc:
+            if "Existed" in (exc.error_code or "") or "已存在" in (exc.message or ""):
+                existing = self.list(kn_id)
+                logger.debug(
+                    "OT name=%r already exists, found %d OTs: %s",
+                    name, len(existing), [ot.name for ot in existing],
+                )
+                for ot in existing:
+                    if ot.name == name:
+                        return ot
+            raise
+
+    def list(self, kn_id: str, *, branch: str = "main") -> list[ObjectType]:
+        data = self._http.get(
             f"{_PREFIX}/knowledge-networks/{kn_id}/object-types",
-            json={"entries": [entry]},
+            params={"limit": -1, "branch": branch},
         )
-        items = data if isinstance(data, list) else data.get("entries", data.get("data", [data]))
-        return _parse_object_type(items[0], kn_id)
-
-    def list(self, kn_id: str) -> list[ObjectType]:
-        data = self._http.get(f"{_PREFIX}/knowledge-networks/{kn_id}/object-types")
         items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
         return [_parse_object_type(d, kn_id) for d in items]
 

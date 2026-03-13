@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
+from kweaver._crypto import encrypt_password
+from kweaver._errors import ADPError
 from kweaver.types import Column, DataSource, Table
 
 if TYPE_CHECKING:
@@ -31,7 +34,7 @@ def _make_bin_data(
         "database_name": database,
         "connect_protocol": _connect_protocol(type),
         "account": account,
-        "password": password,
+        "password": encrypt_password(password),
     }
     if schema is not None:
         d["schema"] = schema
@@ -80,8 +83,16 @@ class DataSourcesResource:
         }
         if comment:
             body["comment"] = comment
-        data = self._http.post("/api/data-connection/v1/datasource", json=body)
-        return _parse_datasource(data)
+        try:
+            data = self._http.post("/api/data-connection/v1/datasource", json=body)
+            return _parse_datasource(data)
+        except ADPError as exc:
+            if "已存在" in (exc.message or ""):
+                existing = self.list(keyword=name)
+                for ds in existing:
+                    if ds.name == name:
+                        return ds
+            raise
 
     def list(self, *, keyword: str | None = None, type: str | None = None) -> list[DataSource]:
         params: dict[str, Any] = {}
@@ -100,6 +111,33 @@ class DataSourcesResource:
     def delete(self, id: str) -> None:
         self._http.delete(f"/api/data-connection/v1/datasource/{id}")
 
+    def scan_metadata(self, id: str, *, ds_type: str = "mysql") -> str:
+        """Trigger a metadata scan for a datasource and wait for completion.
+
+        Returns the scan task ID.
+        """
+        ds = self.get(id)
+        scan_name = f"sdk_scan_{id[:8]}"
+        result = self._http.post(
+            "/api/data-connection/v1/metadata/scan",
+            json={
+                "scan_name": scan_name,
+                "type": 0,
+                "ds_info": {"ds_id": id, "ds_type": ds_type or ds.type or "mysql"},
+                "use_default_template": True,
+                "use_multi_threads": True,
+                "status": "open",
+            },
+        )
+        task_id = result.get("id", "")
+        # Poll until scan completes (max ~60s)
+        for _ in range(30):
+            time.sleep(2)
+            status = self._http.get(f"/api/data-connection/v1/metadata/scan/{task_id}")
+            if status.get("status") in ("success", "fail"):
+                break
+        return task_id
+
     def list_tables(
         self,
         id: str,
@@ -107,8 +145,9 @@ class DataSourcesResource:
         keyword: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
+        auto_scan: bool = True,
     ) -> list[Table]:
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = {"limit": -1}
         if keyword:
             params["keyword"] = keyword
         if limit is not None:
@@ -117,23 +156,48 @@ class DataSourcesResource:
             params["offset"] = offset
         data = self._http.get(
             f"/api/data-connection/v1/metadata/data-source/{id}",
-            params=params or None,
+            params=params,
         )
         items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
-        return [
-            Table(
-                name=t["name"],
-                columns=[
-                    Column(
-                        name=c["name"],
-                        type=c.get("type", "varchar"),
-                        comment=c.get("comment"),
-                    )
-                    for c in t.get("columns", t.get("fields", []))
-                ],
+
+        # Auto-trigger metadata scan if no tables found
+        if not items and auto_scan:
+            self.scan_metadata(id)
+            data = self._http.get(
+                f"/api/data-connection/v1/metadata/data-source/{id}",
+                params=params,
             )
-            for t in items
-        ]
+            items = data if isinstance(data, list) else (data.get("entries") or data.get("data") or [])
+
+        tables: list[Table] = []
+        for t in items:
+            table_id = t.get("id", "")
+            table_name = t.get("name", "")
+            # Fetch column details if not inline
+            columns_raw = t.get("columns", t.get("fields", []))
+            if not columns_raw and table_id:
+                col_data = self._http.get(
+                    f"/api/data-connection/v1/metadata/table/{table_id}",
+                    params={"limit": -1},
+                )
+                columns_raw = (
+                    col_data if isinstance(col_data, list)
+                    else (col_data.get("entries") or col_data.get("data") or [])
+                )
+            tables.append(
+                Table(
+                    name=table_name,
+                    columns=[
+                        Column(
+                            name=c.get("name", c.get("field_name", "")),
+                            type=c.get("type", c.get("field_type", "varchar")),
+                            comment=c.get("comment"),
+                        )
+                        for c in columns_raw
+                    ],
+                )
+            )
+        return tables
 
 
 def _parse_datasource(d: Any) -> DataSource:

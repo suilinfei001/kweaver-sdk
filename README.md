@@ -1,6 +1,6 @@
 # KWeaver SDK
 
-让 AI 智能体（Claude Code、GPT、自定义 Agent 等）通过 Skill 访问 KWeaver / ADP 平台的知识网络与 Decision Agent。
+让 AI 智能体（Claude Code、GPT、自定义 Agent 等）通过 Skill 访问 KWeaver / ADP 平台的知识网络与 Decision Agent。同时提供 `kweaver` CLI 命令供终端用户直接操作。
 
 ## 这个项目解决什么问题
 
@@ -9,37 +9,80 @@ KWeaver (ADP) 平台提供了知识网络构建、语义搜索、Decision Agent 
 ## 前置条件
 
 1. **Python >= 3.10**
-2. **ADP 平台账号** — 需要 `base_url` 和 `token`（Bearer Token）
+2. **ADP 平台账号**
 3. 安装 SDK：
 
 ```bash
-pip install -e .
+pip install -e .           # 核心 SDK
+pip install -e ".[cli]"    # 含 CLI 命令行工具（可选）
 ```
 
 ## 接入步骤
 
-### 第 1 步：配置环境变量
+### 第 1 步：认证
 
-在 `~/.env.secrets` 或你的环境中设置：
+提供四种认证方式，按推荐顺序：
+
+#### 方式 A（推荐）：用 kweaverc 或 kweaver CLI 登录，SDK 共享凭据
+
+```bash
+# 用 kweaverc（TypeScript CLI）登录
+kweaverc auth https://your-adp-instance.com
+
+# 或用 kweaver（Python CLI）登录
+kweaver auth login https://your-adp-instance.com
+```
+
+登录后凭据存储在 `~/.kweaver/`，SDK 通过 `ConfigAuth` 自动读取，无需配置环境变量：
+
+```python
+from kweaver import ADPClient, ConfigAuth
+
+client = ADPClient(
+    auth=ConfigAuth(),                   # 自动读取 ~/.kweaver/ 凭据，自动刷新
+    business_domain="bd_public",         # 必填
+)
+```
+
+也可以指定平台（多平台场景）：
+
+```python
+client = ADPClient(auth=ConfigAuth(platform="prod"), business_domain="bd_public")
+```
+
+#### 方式 B：用户名密码（程序化 / CI 环境）
 
 ```bash
 export ADP_BASE_URL="https://your-adp-instance.com"
-export ADP_TOKEN="Bearer ory_at_xxxxx"
-export ADP_BUSINESS_DOMAIN="bd_public"   # 可选，按需设置
+export ADP_BUSINESS_DOMAIN="bd_public"
+export ADP_USERNAME="user@example.com"
+export ADP_PASSWORD="your-password"
 ```
-
-### 第 2 步：初始化 Client
 
 ```python
-import os
-from kweaver import ADPClient
+from kweaver import ADPClient, PasswordAuth
 
-client = ADPClient(
-    base_url=os.environ["ADP_BASE_URL"],
-    token=os.environ["ADP_TOKEN"],
-    business_domain=os.environ.get("ADP_BUSINESS_DOMAIN"),
-)
+auth = PasswordAuth(base_url, username, password)  # 依赖 Playwright
+client = ADPClient(base_url=base_url, auth=auth, business_domain="bd_public")
 ```
+
+> 方式 B 依赖 Playwright：`pip install playwright && playwright install chromium`
+
+#### 方式 C：静态 Token（临时调试）
+
+```bash
+export ADP_BASE_URL="https://your-adp-instance.com"
+export ADP_BUSINESS_DOMAIN="bd_public"
+export ADP_TOKEN="Bearer ory_at_xxxxx"
+```
+
+```python
+from kweaver import ADPClient, TokenAuth
+
+client = ADPClient(base_url=base_url, auth=TokenAuth(token), business_domain="bd_public")
+```
+
+> **注意**: `ADP_BUSINESS_DOMAIN` 是必填项。不传或传错会导致 API 返回空结果或 Bad Request。
 
 ### 第 3 步：使用 Skill
 
@@ -196,11 +239,113 @@ result = skill.run(
 | 与 Agent 对话 | `discover_agents(list)` → `chat_agent(ask)` → `chat_agent(ask, conversation_id=...)` |
 | 从零构建知识网络 | `connect_db` → `build_kn` → `load_kn_context(schema)` → `query_kn` |
 
-## 在 Claude Code 中使用
+## CLI 命令行
 
-本项目已内置 Claude Code Skill（`.claude/skills/kweaver/SKILL.md`）。当项目目录加入 Claude Code 工作区后，用户说"有哪些知识网络"、"跟 Agent 聊一下"等意图时，Claude Code 会自动调用对应的 Skill。
+安装 `pip install -e ".[cli]"` 后可使用 `kweaver` 命令：
 
-无需额外配置，只需确保环境变量 `ADP_BASE_URL` 和 `ADP_TOKEN` 已设置。
+```bash
+# 认证
+kweaver auth login https://your-adp-instance.com   # 浏览器登录（与 kweaverc 共享凭据）
+kweaver auth status                                 # 查看当前认证状态
+kweaver auth list                                   # 已保存的平台
+kweaver auth use prod                               # 切换平台（别名或 URL）
+
+# 知识网络
+kweaver kn list
+kweaver kn get <kn-id>
+kweaver kn build <kn-id>
+
+# 查询
+kweaver query search <kn-id> "高库存的产品"
+kweaver query instances <kn-id> <ot-id> --condition '{"field":"status","op":"eq","value":"active"}'
+
+# Agent
+kweaver agent list
+kweaver agent chat <agent-id> -m "华东仓库库存情况"
+
+# 通用 API 调用（类似 curl，自动注入认证）
+kweaver call /api/ontology-manager/v1/knowledge-networks
+```
+
+CLI 与 kweaverc (TypeScript CLI) 共享 `~/.kweaver/` 凭据存储，用任一工具登录后另一个直接可用。
+
+## 在 AI 智能体中使用
+
+本项目内置 Skill 定义文件（`.claude/skills/kweaver/SKILL.md`），可部署到 Claude Code、OpenClaw 等支持 Skill 的智能体平台。
+
+### Claude Code（本地开发）
+
+当项目目录加入 Claude Code 工作区后，Skill 自动加载。认证推荐先用 CLI 登录：
+
+```bash
+kweaver auth login https://your-adp-instance.com    # 或 kweaverc auth <url>
+```
+
+Skill 内部通过 `ConfigAuth` 读取 `~/.kweaver/` 凭据，无需设置环境变量。
+
+也可以用环境变量方式（兼容旧用法）：
+
+```bash
+export ADP_BASE_URL="https://your-adp-instance.com"
+export ADP_BUSINESS_DOMAIN="bd_public"
+export ADP_TOKEN="Bearer ory_at_xxxxx"    # 或 ADP_USERNAME + ADP_PASSWORD
+```
+
+### OpenClaw（网关 Bot 部署）
+
+OpenClaw 网关以 Mac app / 后台进程方式运行，**不会继承你的 shell 环境变量**，因此需要额外配置步骤：
+
+#### 1. 安装 SDK
+
+```bash
+pip install -e /path/to/kweaver-sdk
+```
+
+> **注意**: OpenClaw 网关通过 Mac app 启动时 PATH 非常精简。如果 SDK 装在 conda/venv 里，需要设置 `KWEAVER_PYTHON` 指向完整路径。
+
+#### 2. 安装 Skill 文件
+
+```bash
+mkdir -p ~/.openclaw/skills/kweaver
+cp /path/to/kweaver-sdk/.claude/skills/kweaver/SKILL.md ~/.openclaw/skills/kweaver/SKILL.md
+```
+
+#### 3. 配置认证
+
+**推荐方式：** 先在终端用 CLI 登录，OpenClaw 网关进程能直接读取 `~/.kweaver/` 凭据：
+
+```bash
+kweaver auth login https://your-adp-instance.com
+```
+
+然后在 `~/.openclaw/openclaw.json` 中只需配 `ADP_BUSINESS_DOMAIN`：
+
+```jsonc
+{
+  "skills": {
+    "entries": {
+      "kweaver": {
+        "env": {
+          "ADP_BUSINESS_DOMAIN": "bd_public",
+          "KWEAVER_PYTHON": "/path/to/your/python"  // 可选
+        }
+      }
+    }
+  }
+}
+```
+
+**备选方式（无法用 CLI 登录时）：** 配置 `ADP_USERNAME` + `ADP_PASSWORD` 或 `ADP_TOKEN` 环境变量。
+
+#### 4. 验证
+
+```bash
+openclaw skills info kweaver    # 应显示 ✓ Ready
+```
+
+### 其他平台
+
+只需将 `.claude/skills/kweaver/SKILL.md` 的内容适配到目标平台的 Skill/Plugin 格式，并确保运行环境能访问到已安装 kweaver SDK 的 Python 解释器。认证优先用 `~/.kweaver/` 共享凭据，或通过环境变量配置。
 
 ## 开发与测试
 
@@ -212,4 +357,4 @@ pytest
 pytest tests/e2e/ --run-destructive
 ```
 
-E2E 测试支持自动登录刷新 Token — 在 `~/.env.secrets` 中配置 `ADP_USERNAME` 和 `ADP_PASSWORD` 即可，无需手动更新 Token。
+E2E 测试推荐先用 `kweaver auth login` 登录，测试会自动使用 `~/.kweaver/` 凭据。也支持 `ADP_USERNAME` + `ADP_PASSWORD` 环境变量方式。

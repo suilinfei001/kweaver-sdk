@@ -20,7 +20,9 @@ def test_create_transforms_params(capture: RequestCapture):
     assert body["bin_data"]["host"] == "10.0.1.100"
     assert body["bin_data"]["database_name"] == "erp"
     assert body["bin_data"]["connect_protocol"] == "jdbc"
-    assert body["bin_data"]["password"] == "secret"
+    # Password is RSA-encrypted before sending; verify it's not plaintext
+    assert body["bin_data"]["password"] != "secret"
+    assert len(body["bin_data"]["password"]) > 100  # RSA-2048 produces ~344 chars base64
     assert ds.id == "ds_01"
 
 

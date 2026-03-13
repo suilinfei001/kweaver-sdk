@@ -17,7 +17,7 @@ from typing import Any
 
 import pytest
 
-from kweaver import ADPClient
+from kweaver import ADPClient, PasswordAuth
 
 # ---------------------------------------------------------------------------
 # Auto-load secrets from ~/.env.secrets (same pattern as Alfred)
@@ -48,63 +48,6 @@ def _load_env_secrets() -> None:
             os.environ[key] = value
 
 _load_env_secrets()
-
-
-# ---------------------------------------------------------------------------
-# Playwright-based OAuth2 token refresh
-# ---------------------------------------------------------------------------
-
-def _refresh_adp_token(base_url: str, username: str, password: str) -> str:
-    """Login to ADP via browser and return a fresh Bearer token.
-
-    Uses Playwright (headless) to automate the Ory OAuth2 login flow:
-      1. GET /api/dip-hub/v1/login  → 302 → /oauth2/auth → /oauth2/signin
-      2. Fill account/password → click login button
-      3. OAuth2 consent auto-approved → callback sets dip.oauth2_token cookie
-
-    Returns the ory_at_* token string (without 'Bearer ' prefix).
-    """
-    import time as _time
-
-    from playwright.sync_api import sync_playwright
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
-
-        # Start the OAuth2 login flow
-        page.goto(
-            f"{base_url}/api/dip-hub/v1/login",
-            wait_until="networkidle",
-            timeout=30000,
-        )
-
-        # Fill the login form and submit
-        page.fill('input[name="account"]', username)
-        page.fill('input[name="password"]', password)
-        page.click("button.ant-btn-primary")
-
-        # Poll for the dip.oauth2_token cookie (set after OAuth2 callback)
-        token = None
-        for _ in range(30):
-            _time.sleep(1)
-            for cookie in context.cookies():
-                if cookie["name"] == "dip.oauth2_token":
-                    token = cookie["value"]
-                    break
-            if token:
-                break
-
-        browser.close()
-
-    if not token:
-        raise RuntimeError(
-            "Failed to extract ADP token after browser login. "
-            "Check ADP_USERNAME/ADP_PASSWORD in ~/.env.secrets"
-        )
-
-    return token
 
 
 # ---------------------------------------------------------------------------
@@ -208,10 +151,10 @@ def e2e_env(request: pytest.FixtureRequest) -> dict[str, str]:
     password = os.getenv("ADP_PASSWORD", "")
     if username and password:
         try:
-            fresh_token = _refresh_adp_token(
-                env_cfg["base_url"], username, password
-            )
+            auth = PasswordAuth(env_cfg["base_url"], username, password)
+            fresh_token = auth.refresh()
             env_cfg["token"] = f"Bearer {fresh_token}"
+            env_cfg["_auth"] = auth
         except Exception as exc:
             # Fall back to static token if auto-login fails
             if not env_cfg.get("token"):
@@ -225,12 +168,22 @@ def e2e_env(request: pytest.FixtureRequest) -> dict[str, str]:
 @pytest.fixture(scope="session")
 def adp_client(e2e_env: dict[str, str]) -> ADPClient:
     """Session-scoped ADPClient connected to the E2E environment."""
-    client = ADPClient(
-        base_url=e2e_env["base_url"],
-        token=e2e_env["token"],
-        account_id=e2e_env.get("account_id", "test"),
-        business_domain=e2e_env.get("business_domain") or None,
-    )
+    # Prefer PasswordAuth (auto-refresh) over static token
+    auth = e2e_env.get("_auth")
+    if auth:
+        client = ADPClient(
+            base_url=e2e_env["base_url"],
+            auth=auth,
+            account_id=e2e_env.get("account_id", "test"),
+            business_domain=e2e_env.get("business_domain") or None,
+        )
+    else:
+        client = ADPClient(
+            base_url=e2e_env["base_url"],
+            token=e2e_env["token"],
+            account_id=e2e_env.get("account_id", "test"),
+            business_domain=e2e_env.get("business_domain") or None,
+        )
     yield client
     client.close()
 

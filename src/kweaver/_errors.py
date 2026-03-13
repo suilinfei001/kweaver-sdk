@@ -83,9 +83,20 @@ def raise_for_status(response: httpx.Response) -> None:
     try:
         body = response.json()
         if isinstance(body, dict):
-            error_code = body.get("error_code") or body.get("ErrorCode")
-            message = body.get("message") or body.get("Description") or message
+            error_code = body.get("error_code") or body.get("ErrorCode") or body.get("code")
+            message = (
+                body.get("message")
+                or body.get("Description")
+                or body.get("detail")
+                or body.get("description")
+                or message
+            )
             trace_id = body.get("trace_id")
+            # Include full body for debugging validation errors
+            if response.status_code == 400 and not message:
+                message = str(body)
+        elif isinstance(body, (list, str)):
+            message = str(body)
     except Exception:
         pass
 
