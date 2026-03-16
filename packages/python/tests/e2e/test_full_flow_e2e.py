@@ -82,7 +82,7 @@ def test_cli_full_lifecycle(kweaver_client: KWeaverClient, db_config: dict[str, 
             kn_status = create_data["status"]
 
         # Step 3: kn export
-        export_result = runner.invoke(cli, ["kn", "export", kn_id])
+        export_result = runner.invoke(cli, ["bkn", "export", kn_id])
         assert export_result.exit_code == 0
 
         # Step 4: query search (if build succeeded)
