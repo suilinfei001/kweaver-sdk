@@ -84,7 +84,7 @@ CLI ──→ SDK ──→ HTTP     (AI Agent / 终端用户通过 CLI 操作)
 | 每个 REST 接口一个命令 | 最大灵活性 | Agent 决策负担重，易出错 |
 | **按用户意图分组（选定）** | 平衡灵活性和认知负担 | 需要设计合理的分组 |
 
-选定方案：按用户意图分成命令组（`ds`、`kn`、`query`、`action`、`agent`）。每个命令内部可能编排多个 SDK 调用（如 `ds connect` = 测试 → 注册 → 发现表），但 Agent 只需表达意图。
+选定方案：按用户意图分成命令组（`ds`、`bkn`、`query`、`action`、`agent`）。每个命令内部可能编排多个 SDK 调用（如 `ds connect` = 测试 → 注册 → 发现表），但 Agent 只需表达意图。
 
 ### 3.3 其他折衷
 
@@ -176,7 +176,7 @@ Skill (SKILL.md) ──→ CLI ──→ SDK ──→ HTTP   (AI Agent)
  │   │  SDK: datasources.list_tables()
  │   └─ 输出 JSON: {datasource_id, tables: [...]}
  │
- ├─ CLI: kweaver kn create ───────────────────────────────────
+ ├─ CLI: kweaver bkn create ───────────────────────────────────
  │   │  SDK: datasources.list_tables()     ← 获取表元数据
  │   │  SDK: dataviews.create()            ← 每张目标表
  │   │  SDK: knowledge_networks.create()
@@ -194,11 +194,11 @@ Skill (SKILL.md) ──→ CLI ──→ SDK ──→ HTTP   (AI Agent)
 ```
 用户/Agent: "这个知识网络里有什么？"
  │
- ├─ CLI: kweaver kn list ──────────────────────────────
+ ├─ CLI: kweaver bkn list ──────────────────────────────
  │   │  SDK: knowledge_networks.list()
  │   └─ 输出 JSON: 知识网络列表
  │
- ├─ CLI: kweaver kn export <kn-id> ────────────────────
+ ├─ CLI: kweaver bkn export <kn-id> ────────────────────
  │   │  SDK: knowledge_networks.export()
  │   └─ 输出 JSON: 完整 Schema（对象类、关系类、属性）
  │
@@ -1905,7 +1905,7 @@ kweaver-sdk/
 │       ├── _helpers.py          # make_client, handle_errors, pp, error_exit
 │       ├── auth.py              # kweaver auth login/status/use/logout
 │       ├── ds.py                # kweaver ds connect/list/get/delete/tables
-│       ├── kn.py                # kweaver kn create/list/get/build/export/delete
+│       ├── kn.py                # kweaver bkn create/list/get/build/export/delete
 │       ├── query.py             # kweaver query search/instances/kn-search/subgraph
 │       ├── action.py            # kweaver action query/execute/logs/log
 │       ├── agent.py             # kweaver agent list/chat/sessions/history

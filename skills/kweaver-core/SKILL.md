@@ -51,25 +51,25 @@ kweaver auth logout                              # 登出
 kweaver token                                    # 打印当前 access token
 ```
 
-### 知识网络 (kn)
+### 知识网络 (bkn)
 
 ```bash
-kweaver kn list [options]                        # 列出知识网络
-kweaver kn get <kn-id> [options]                 # 查看详情
-kweaver kn stats <kn-id>                          # 查看统计
-kweaver kn export <kn-id>                         # 导出定义
-kweaver kn create [options]                      # 创建网络
-kweaver kn update <kn-id> [options]              # 更新网络
-kweaver kn delete <kn-id> [--yes]                 # 删除（默认需确认）
-kweaver kn object-type query <kn-id> <ot-id> ['<json>']   # 对象实例查询
-kweaver kn object-type properties <kn-id> <ot-id> '<json>' # 对象属性查询
-kweaver kn subgraph <kn-id> '<json>'              # 子图查询
-kweaver kn action-type query <kn-id> <at-id> '<json>'     # 行动信息查询
-kweaver kn action-type execute <kn-id> <at-id> '<json>' [--wait] # 执行行动
-kweaver kn action-execution get <kn-id> <execution-id>    # 获取执行状态
-kweaver kn action-log list <kn-id> [options]     # 列出执行日志
-kweaver kn action-log get <kn-id> <log-id>       # 查看执行日志
-kweaver kn action-log cancel <kn-id> <log-id>    # 取消执行
+kweaver bkn list [options]                        # 列出知识网络
+kweaver bkn get <kn-id> [options]                 # 查看详情
+kweaver bkn stats <kn-id>                          # 查看统计
+kweaver bkn export <kn-id>                         # 导出定义
+kweaver bkn create [options]                      # 创建网络
+kweaver bkn update <kn-id> [options]              # 更新网络
+kweaver bkn delete <kn-id> [--yes]                 # 删除（默认需确认）
+kweaver bkn object-type query <kn-id> <ot-id> ['<json>']   # 对象实例查询
+kweaver bkn object-type properties <kn-id> <ot-id> '<json>' # 对象属性查询
+kweaver bkn subgraph <kn-id> '<json>'              # 子图查询
+kweaver bkn action-type query <kn-id> <at-id> '<json>'     # 行动信息查询
+kweaver bkn action-type execute <kn-id> <at-id> '<json>' [--wait] # 执行行动
+kweaver bkn action-execution get <kn-id> <execution-id>    # 获取执行状态
+kweaver bkn action-log list <kn-id> [options]     # 列出执行日志
+kweaver bkn action-log get <kn-id> <log-id>       # 查看执行日志
+kweaver bkn action-log cancel <kn-id> <log-id>    # 取消执行
 ```
 
 ### Agent (agent)
@@ -110,9 +110,9 @@ kweaver call <path> -H "Name: Value" -bd <domain> # 自定义 header、业务域
 ### 1. 探索已有知识网络
 
 ```bash
-kweaver kn list
-kweaver kn get <kn-id> --stats
-kweaver kn export <kn-id>
+kweaver bkn list
+kweaver bkn get <kn-id> --stats
+kweaver bkn export <kn-id>
 ```
 
 ### 2. 查询知识网络数据
@@ -123,7 +123,7 @@ kweaver context-loader config set --kn-id <kn-id>
 kweaver context-loader kn-search "高血压 治疗 药品" --only-schema --pretty
 
 # 直接查询对象实例
-kweaver kn object-type query <kn-id> <ot-id> --limit 10 --pretty
+kweaver bkn object-type query <kn-id> <ot-id> --limit 10 --pretty
 ```
 
 ### 3. Agent 对话
@@ -138,16 +138,16 @@ kweaver agent history <conversation-id>
 ### 4. 执行 Action
 
 ```bash
-kweaver kn action-type execute <kn-id> <at-id> '{"params":{}}' --wait
-kweaver kn action-log list <kn-id>
-kweaver kn action-log get <kn-id> <log-id>
+kweaver bkn action-type execute <kn-id> <at-id> '{"params":{}}' --wait
+kweaver bkn action-log list <kn-id>
+kweaver bkn action-log get <kn-id> <log-id>
 ```
 
 ---
 
-## KN 与 Context Loader 的边界
+## BKN 与 Context Loader 的边界
 
-- **kn**：直接调用 ontology-query 原生接口，适合已知 `kn_id`、`ot_id`、`at_id` 且需透传 JSON 的场景
+- **bkn**：直接调用 ontology-query 原生接口，适合已知 `kn_id`、`ot_id`、`at_id` 且需透传 JSON 的场景
 - **context-loader**：schema → 实例 → 逻辑属性/行动信息 的分层检索工作流，适合 Agent 化检索（需先 `kn-search` 发现 schema，再逐层调用）
 
 ---

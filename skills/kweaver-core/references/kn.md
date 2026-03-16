@@ -8,30 +8,30 @@
 
 | 命令 | 说明 |
 |------|------|
-| `kweaver kn list [options]` | 列出知识网络 |
-| `kweaver kn get <kn-id> [options]` | 查看网络详情 |
-| `kweaver kn stats <kn-id>` | 查看网络统计 |
-| `kweaver kn export <kn-id>` | 导出网络定义 |
-| `kweaver kn create [options]` | 创建网络 |
-| `kweaver kn update <kn-id> [options]` | 更新网络 |
-| `kweaver kn delete <kn-id> [--yes]` | 删除网络（默认需确认） |
+| `kweaver bkn list [options]` | 列出知识网络 |
+| `kweaver bkn get <kn-id> [options]` | 查看网络详情 |
+| `kweaver bkn stats <kn-id>` | 查看网络统计 |
+| `kweaver bkn export <kn-id>` | 导出网络定义 |
+| `kweaver bkn create [options]` | 创建网络 |
+| `kweaver bkn update <kn-id> [options]` | 更新网络 |
+| `kweaver bkn delete <kn-id> [--yes]` | 删除网络（默认需确认） |
 
 ### 查询（ontology-query 只读）
 
 | 命令 | 说明 |
 |------|------|
-| `kweaver kn object-type query <kn-id> <ot-id> ['<json>'] [--limit n]` | 对象实例查询 |
-| `kweaver kn object-type properties <kn-id> <ot-id> '<json>'` | 对象属性查询 |
-| `kweaver kn subgraph <kn-id> '<json>'` | 子图查询 |
-| `kweaver kn action-type query <kn-id> <at-id> '<json>'` | 行动信息查询 |
+| `kweaver bkn object-type query <kn-id> <ot-id> ['<json>'] [--limit n]` | 对象实例查询 |
+| `kweaver bkn object-type properties <kn-id> <ot-id> '<json>'` | 对象属性查询 |
+| `kweaver bkn subgraph <kn-id> '<json>'` | 子图查询 |
+| `kweaver bkn action-type query <kn-id> <at-id> '<json>'` | 行动信息查询 |
 
 ### Action（有副作用）
 
 | 命令 | 说明 |
 |------|------|
-| `kweaver kn action-type execute <kn-id> <at-id> '<json>' [--wait]` | 执行行动 |
-| `kweaver kn action-execution get <kn-id> <execution-id>` | 获取执行状态 |
-| `kweaver kn action-log list/get/cancel ...` | 执行日志 |
+| `kweaver bkn action-type execute <kn-id> <at-id> '<json>' [--wait]` | 执行行动 |
+| `kweaver bkn action-execution get <kn-id> <execution-id>` | 获取执行状态 |
+| `kweaver bkn action-log list/get/cancel ...` | 执行日志 |
 
 ### Python 独有：数据源与高层查询
 
@@ -63,13 +63,13 @@ kweaver ds connect --type mysql --host 10.0.1.100 --port 3306 \
 
 ```bash
 # 创建知识网络
-kweaver kn create --name erp_prod --ds-id <datasource-id> \
+kweaver bkn create --name erp_prod --ds-id <datasource-id> \
   --tables products,inventory \
   --relations '[{"name":"产品_库存","from_table":"products","to_table":"inventory","from_field":"material_number","to_field":"material_code"}]'
 # -> 返回 kn_id
 
 # 触发构建
-kweaver kn build <kn-id>
+kweaver bkn build <kn-id>
 # -> 等待构建完成，返回状态
 ```
 
@@ -77,16 +77,16 @@ kweaver kn build <kn-id>
 
 ```bash
 # 列出所有知识网络
-kweaver kn list
+kweaver bkn list
 
 # 按名称筛选
-kweaver kn list --name erp
+kweaver bkn list --name erp
 
 # 查看网络详情
-kweaver kn get <kn-id>
+kweaver bkn get <kn-id>
 
 # 导出 Schema（对象类型、关系类型、属性）
-kweaver kn export <kn-id>
+kweaver bkn export <kn-id>
 ```
 
 ### 查询知识网络
@@ -122,8 +122,8 @@ kweaver query subgraph <kn-id> --start <ot-id> \
 
 ## 默认策略
 
-- 用户说"看看有哪些知识网络"：`kweaver kn list`
-- 用户说"查某个知识网络的结构"：`kweaver kn export <id>`
+- 用户说"看看有哪些知识网络"：`kweaver bkn list`
+- 用户说"查某个知识网络的结构"：`kweaver bkn export <id>`
 - 用户说"查对象实例"：`kweaver query instances <kn-id> <ot-id>`
 - 用户有模糊的业务问题：`kweaver query search <kn-id> "..."`
 

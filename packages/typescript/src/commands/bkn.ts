@@ -200,7 +200,7 @@ export function parseKnGetArgs(args: string[]): KnGetOptions {
   }
 
   if (!knId) {
-    throw new Error("Missing kn-id. Usage: kweaver kn get <kn-id> [options]");
+    throw new Error("Missing kn-id. Usage: kweaver bkn get <kn-id> [options]");
   }
 
   return { knId, stats, export: exportMode, businessDomain, pretty };
@@ -375,7 +375,7 @@ export function parseKnUpdateArgs(args: string[]): KnUpdateOptions {
   }
 
   if (!knId) {
-    throw new Error("Missing kn-id. Usage: kweaver kn update <kn-id> [options]");
+    throw new Error("Missing kn-id. Usage: kweaver bkn update <kn-id> [options]");
   }
 
   let body: string;
@@ -445,7 +445,7 @@ export function parseKnDeleteArgs(args: string[]): KnDeleteOptions {
   }
 
   if (!knId) {
-    throw new Error("Missing kn-id. Usage: kweaver kn delete <kn-id>");
+    throw new Error("Missing kn-id. Usage: kweaver bkn delete <kn-id>");
   }
 
   return { knId, businessDomain, yes };
@@ -544,12 +544,12 @@ export function parseKnObjectTypeQueryArgs(args: string[]): KnObjectTypeQueryOpt
   const [knId, otId, bodyText = "{}"] = positionalArgs;
   if (!knId || !otId) {
     throw new Error(
-      "Usage: kweaver kn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]"
+      "Usage: kweaver bkn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]"
     );
   }
   if (positionalArgs.length > 3) {
     throw new Error(
-      "Usage: kweaver kn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]"
+      "Usage: kweaver bkn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]"
     );
   }
 
@@ -573,7 +573,7 @@ export function parseKnObjectTypeQueryArgs(args: string[]): KnObjectTypeQueryOpt
   };
 }
 
-const KN_HELP = `kweaver kn
+const KN_HELP = `kweaver bkn
 
 Subcommands:
   list [options]       List business knowledge networks
@@ -593,7 +593,7 @@ Subcommands:
   action-log get <kn-id> <log-id>   Get single execution log
   action-log cancel <kn-id> <log-id>   Cancel running execution (has side effects)
 
-Use 'kweaver kn <subcommand> --help' for subcommand options.`;
+Use 'kweaver bkn <subcommand> --help' for subcommand options.`;
 
 export async function runKnCommand(args: string[]): Promise<number> {
   const [subcommand, ...rest] = args;
@@ -651,7 +651,7 @@ export async function runKnCommand(args: string[]): Promise<number> {
     return runKnActionLogCommand(rest);
   }
 
-  console.error(`Unknown kn subcommand: ${subcommand}`);
+  console.error(`Unknown bkn subcommand: ${subcommand}`);
   return 1;
 }
 
@@ -734,7 +734,7 @@ export function parseKnActionTypeExecuteArgs(args: string[]): KnActionTypeExecut
 
   const [knId, atId, body] = positional;
   if (!knId || !atId || !body) {
-    throw new Error("Missing kn-id, at-id, or body. Usage: kweaver kn action-type execute <kn-id> <at-id> '<json>' [options]");
+    throw new Error("Missing kn-id, at-id, or body. Usage: kweaver bkn action-type execute <kn-id> <at-id> '<json>' [options]");
   }
 
   return {
@@ -751,8 +751,8 @@ export function parseKnActionTypeExecuteArgs(args: string[]): KnActionTypeExecut
 async function runKnObjectTypeCommand(args: string[]): Promise<number> {
   const [action, ...rest] = args;
   if (!action || action === "--help" || action === "-h") {
-    console.log(`kweaver kn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]
-kweaver kn object-type properties <kn-id> <ot-id> '<json>' [--pretty] [-bd value]
+    console.log(`kweaver bkn object-type query <kn-id> <ot-id> ['<json>'] [--limit <n>] [--search-after '<json-array>'] [--pretty] [-bd value]
+kweaver bkn object-type properties <kn-id> <ot-id> '<json>' [--pretty] [-bd value]
 
 Query object types via ontology-query API. For query, --limit and --search-after are merged into the JSON body.`);
     return 0;
@@ -778,7 +778,7 @@ Query object types via ontology-query API. For query, --limit and --search-after
       const parsed = parseOntologyQueryFlags(rest);
       const [knId, otId, body] = parsed.filteredArgs;
       if (!knId || !otId || !body) {
-        console.error("Usage: kweaver kn object-type properties <kn-id> <ot-id> '<json>' [options]");
+        console.error("Usage: kweaver bkn object-type properties <kn-id> <ot-id> '<json>' [options]");
         return 1;
       }
 
@@ -814,7 +814,7 @@ async function runKnSubgraphCommand(args: string[]): Promise<number> {
     businessDomain = parsed.businessDomain;
   } catch (error) {
     if (error instanceof Error && error.message === "help") {
-      console.log(`kweaver kn subgraph <kn-id> '<json>' [--pretty] [-bd value]
+      console.log(`kweaver bkn subgraph <kn-id> '<json>' [--pretty] [-bd value]
 
 Query subgraph via ontology-query API. JSON body format see ref/ontology/ontology-query.yaml.`);
       return 0;
@@ -824,7 +824,7 @@ Query subgraph via ontology-query API. JSON body format see ref/ontology/ontolog
 
   const [knId, body] = filteredArgs;
   if (!knId || !body) {
-    console.error("Usage: kweaver kn subgraph <kn-id> '<json>' [options]");
+    console.error("Usage: kweaver bkn subgraph <kn-id> '<json>' [options]");
     return 1;
   }
 
@@ -870,8 +870,8 @@ function extractStatus(body: string): string {
 async function runKnActionTypeCommand(args: string[]): Promise<number> {
   const [action, ...rest] = args;
   if (!action || action === "--help" || action === "-h") {
-    console.log(`kweaver kn action-type query <kn-id> <at-id> '<json>' [--pretty] [-bd value]
-kweaver kn action-type execute <kn-id> <at-id> '<json>' [--pretty] [-bd value] [--wait|--no-wait] [--timeout n]
+    console.log(`kweaver bkn action-type query <kn-id> <at-id> '<json>' [--pretty] [-bd value]
+kweaver bkn action-type execute <kn-id> <at-id> '<json>' [--pretty] [-bd value] [--wait|--no-wait] [--timeout n]
 
 Query or execute actions. execute has side effects - only use when explicitly requested.
   --wait (default)    Poll until execution completes
@@ -895,7 +895,7 @@ Query or execute actions. execute has side effects - only use when explicitly re
     }
     const [knId, atId, body] = filteredArgs;
     if (!knId || !atId || !body) {
-      console.error("Usage: kweaver kn action-type query <kn-id> <at-id> '<json>' [options]");
+      console.error("Usage: kweaver bkn action-type query <kn-id> <at-id> '<json>' [options]");
       return 1;
     }
     try {
@@ -986,7 +986,7 @@ async function runKnActionExecutionCommand(args: string[]): Promise<number> {
     businessDomain = parsed.businessDomain;
   } catch (error) {
     if (error instanceof Error && error.message === "help") {
-      console.log(`kweaver kn action-execution get <kn-id> <execution-id> [--pretty] [-bd value]
+      console.log(`kweaver bkn action-execution get <kn-id> <execution-id> [--pretty] [-bd value]
 
 Get action execution status.`);
       return 0;
@@ -996,7 +996,7 @@ Get action execution status.`);
 
   const [subAction, knId, executionId] = filteredArgs;
   if (subAction !== "get" || !knId || !executionId) {
-    console.error("Usage: kweaver kn action-execution get <kn-id> <execution-id> [options]");
+    console.error("Usage: kweaver bkn action-execution get <kn-id> <execution-id> [options]");
     return 1;
   }
 
@@ -1020,9 +1020,9 @@ Get action execution status.`);
 async function runKnActionLogCommand(args: string[]): Promise<number> {
   const [action, ...rest] = args;
   if (!action || action === "--help" || action === "-h") {
-    console.log(`kweaver kn action-log list <kn-id> [options]
-kweaver kn action-log get <kn-id> <log-id> [options]
-kweaver kn action-log cancel <kn-id> <log-id> [options]
+    console.log(`kweaver bkn action-log list <kn-id> [options]
+kweaver bkn action-log get <kn-id> <log-id> [options]
+kweaver bkn action-log cancel <kn-id> <log-id> [options]
 
 List/get execution logs. cancel has side effects - only use when explicitly requested.
 Options for list: --limit, --need-total, --action-type-id, --status, --trigger-type, --search-after`);
@@ -1097,7 +1097,7 @@ Options for list: --limit, --need-total, --action-type-id, --status, --trigger-t
     if (action === "list") {
       const [knId] = filteredArgs;
       if (!knId) {
-        console.error("Usage: kweaver kn action-log list <kn-id> [options]");
+        console.error("Usage: kweaver bkn action-log list <kn-id> [options]");
         return 1;
       }
       const result = await actionLogsList({
@@ -1117,7 +1117,7 @@ Options for list: --limit, --need-total, --action-type-id, --status, --trigger-t
     if (action === "get") {
       const [knId, logId] = filteredArgs;
       if (!knId || !logId) {
-        console.error("Usage: kweaver kn action-log get <kn-id> <log-id> [options]");
+        console.error("Usage: kweaver bkn action-log get <kn-id> <log-id> [options]");
         return 1;
       }
       const result = await actionLogGet({ ...base, knId, logId });
@@ -1128,7 +1128,7 @@ Options for list: --limit, --need-total, --action-type-id, --status, --trigger-t
     if (action === "cancel") {
       const [knId, logId] = filteredArgs;
       if (!knId || !logId) {
-        console.error("Usage: kweaver kn action-log cancel <kn-id> <log-id> [options]");
+        console.error("Usage: kweaver bkn action-log cancel <kn-id> <log-id> [options]");
         return 1;
       }
       const result = await actionLogCancel({ ...base, knId, logId });
@@ -1185,7 +1185,7 @@ async function runKnListCommand(args: string[]): Promise<number> {
   }
 }
 
-const KN_LIST_HELP = `kweaver kn list [options]
+const KN_LIST_HELP = `kweaver bkn list [options]
 
 List business knowledge networks from the ontology-manager API.
 
@@ -1201,7 +1201,7 @@ Options:
   -bd, --biz-domain <value>  Business domain (default: bd_public)
   --pretty           Pretty-print JSON output (applies to both modes)`;
 
-const KN_GET_HELP = `kweaver kn get <kn-id> [options]
+const KN_GET_HELP = `kweaver bkn get <kn-id> [options]
 
 Get knowledge network detail.
 
@@ -1211,7 +1211,7 @@ Options:
   -bd, --biz-domain <value>  Business domain (default: bd_public)
   --pretty           Pretty-print JSON output`;
 
-const KN_CREATE_HELP = `kweaver kn create [options]
+const KN_CREATE_HELP = `kweaver bkn create [options]
 
 Create a knowledge network.
 
@@ -1229,7 +1229,7 @@ Options:
   -bd, --biz-domain <value>  Business domain (default: bd_public)
   --pretty           Pretty-print JSON output`;
 
-const KN_UPDATE_HELP = `kweaver kn update <kn-id> [options]
+const KN_UPDATE_HELP = `kweaver bkn update <kn-id> [options]
 
 Update a knowledge network.
 
@@ -1245,7 +1245,7 @@ Options:
   -bd, --biz-domain <value>  Business domain (default: bd_public)
   --pretty           Pretty-print JSON output`;
 
-const KN_DELETE_HELP = `kweaver kn delete <kn-id>
+const KN_DELETE_HELP = `kweaver bkn delete <kn-id>
 
 Delete a knowledge network and its object types, relation types, action types, and concept groups.
 

@@ -60,10 +60,10 @@ Lists tables with columns for a datasource.
 
 ## New CLI Commands
 
-### `kweaver kn create`
+### `kweaver bkn create`
 
 ```
-kweaver kn create <datasource-id> \
+kweaver bkn create <datasource-id> \
     --name <kn-name> \
     [--tables <t1,t2,...>] \
     [--build/--no-build] \
@@ -169,7 +169,7 @@ Content structure:
 - Operation playbooks for AI agents (build from scratch, explore existing, agent chat, execute action)
 - No Python `import kweaver` examples
 
-`kweaver kn export` covers the schema discovery use case (`LoadKnContextSkill` overview/schema modes). The export endpoint returns full KN structure including object types, relation types, and properties. No new `kn schema` command needed. The `instances` mode is covered by the existing `kweaver query instances` command.
+`kweaver bkn export` covers the schema discovery use case (`LoadKnContextSkill` overview/schema modes). The export endpoint returns full KN structure including object types, relation types, and properties. No new `bkn schema` command needed. The `instances` mode is covered by the existing `kweaver query instances` command.
 
 ## Version and Deprecation
 
@@ -178,13 +178,13 @@ This is a pre-1.0 SDK (currently 0.5.0). The `kweaver.skills` module is deleted 
 ## Testing Strategy
 
 - **Unit tests**: Existing tests in `tests/unit/` continue unchanged (no Skill imports).
-- **CLI unit tests**: New commands (`ds connect`, `ds list/get/delete/tables`, `kn create`, `query subgraph`, `agent sessions`, `agent history`) get `click.testing.CliRunner` tests with mocked HTTP in `tests/unit/test_cli.py`.
+- **CLI unit tests**: New commands (`ds connect`, `ds list/get/delete/tables`, `bkn create`, `query subgraph`, `agent sessions`, `agent history`) get `click.testing.CliRunner` tests with mocked HTTP in `tests/unit/test_cli.py`.
 - **E2E tests**: `test_full_flow_e2e.py` and `test_context_loader_e2e.py` are rewritten to invoke CLI commands via `CliRunner` or subprocess.
 
 ## Implementation Order
 
 1. Create `ds` command group with all subcommands (`connect`, `list`, `get`, `delete`, `tables`)
-2. Add `kn create` command
+2. Add `bkn create` command
 3. Add `query subgraph` command
 4. Add `agent sessions` and `agent history` commands
 5. Add CLI error handling decorator

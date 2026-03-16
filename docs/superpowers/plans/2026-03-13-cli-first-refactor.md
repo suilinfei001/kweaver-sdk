@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Delete all Skill classes, make CLI the sole orchestration layer, add new `ds`/`kn create`/`query subgraph`/`agent sessions|history` commands, rewrite SKILL.md and E2E tests, bump to 0.6.0.
+**Goal:** Delete all Skill classes, make CLI the sole orchestration layer, add new `ds`/`bkn create`/`query subgraph`/`agent sessions|history` commands, rewrite SKILL.md and E2E tests, bump to 0.6.0.
 
 **Architecture:** CLI commands in `src/kweaver/cli/` call resource methods from `src/kweaver/resources/` directly. Skills layer is removed entirely. All orchestration logic (PK detection, multi-step create flows) lives in CLI commands. A shared `handle_errors` decorator provides consistent error handling.
 
@@ -12,7 +12,7 @@
 
 ---
 
-## Chunk 1: `ds` Command Group + `kn create` + Error Handler
+## Chunk 1: `ds` Command Group + `bkn create` + Error Handler
 
 ### Task 1: CLI Error Handler
 
@@ -246,7 +246,7 @@ In `tests/unit/test_cli.py`, update the `test_cli_help` test:
 def test_cli_help(runner):
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("auth", "kn", "query", "action", "agent", "call", "ds"):
+    for cmd in ("auth", "bkn", "query", "action", "agent", "call", "ds"):
         assert cmd in result.output
 ```
 
@@ -487,7 +487,7 @@ git commit -m "feat(cli): add ds connect command"
 
 ---
 
-### Task 5: `kn create` Command
+### Task 5: `bkn create` Command
 
 This is the most complex new command — it replicates `BuildKnSkill` orchestration including PK/display key heuristics.
 
@@ -543,7 +543,7 @@ def test_kn_create(runner):
         mock_make.return_value = client
 
         result = runner.invoke(cli, [
-            "kn", "create", "ds1", "--name", "test_kn",
+            "bkn", "create", "ds1", "--name", "test_kn",
         ])
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -587,7 +587,7 @@ def test_kn_create_no_build(runner):
         mock_make.return_value = client
 
         result = runner.invoke(cli, [
-            "kn", "create", "ds1", "--name", "no_build_kn", "--no-build",
+            "bkn", "create", "ds1", "--name", "no_build_kn", "--no-build",
         ])
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -633,7 +633,7 @@ def test_kn_create_with_tables_filter(runner):
         mock_make.return_value = client
 
         result = runner.invoke(cli, [
-            "kn", "create", "ds1", "--name", "filtered", "--tables", "users",
+            "bkn", "create", "ds1", "--name", "filtered", "--tables", "users",
         ])
         assert result.exit_code == 0
         # Only one OT created (for "users", not "orders")
@@ -645,7 +645,7 @@ def test_kn_create_with_tables_filter(runner):
 Run: `python -m pytest tests/unit/test_cli.py::test_kn_create -v`
 Expected: FAIL — `create` command not found on `kn` group
 
-- [ ] **Step 3: Add kn create command with PK/display key heuristics**
+- [ ] **Step 3: Add bkn create command with PK/display key heuristics**
 
 Add to `src/kweaver/cli/kn.py`:
 
@@ -678,7 +678,7 @@ def _detect_display_key(table: Any, primary_key: str) -> str:
     return primary_key
 
 
-@kn_group.command("create")
+@kn_group.command("create")  # registered under "bkn" group
 @click.argument("datasource_id")
 @click.option("--name", required=True, help="Knowledge network name.")
 @click.option("--tables", default=None, help="Comma-separated table names (default: all).")
@@ -766,7 +766,7 @@ Expected: PASS
 
 ```bash
 git add src/kweaver/cli/kn.py tests/unit/test_cli.py
-git commit -m "feat(cli): add kn create command with PK/display key heuristics"
+git commit -m "feat(cli): add bkn create command with PK/display key heuristics"
 ```
 
 ---
@@ -1194,7 +1194,7 @@ git commit -m "refactor(cli): apply handle_errors decorator to all existing comm
 
 The two files should have identical content (except frontmatter). Content structure per spec:
 - Prerequisites (install, auth)
-- Command quick reference by domain (ds, kn, query, action, agent, call)
+- Command quick reference by domain (ds, bkn, query, action, agent, call)
 - Operation playbooks for AI agents (build from scratch, explore existing, agent chat, execute action)
 - No Python `import kweaver` examples
 
@@ -1204,7 +1204,7 @@ Read both `skills/kweaver-core/SKILL.md` and `.claude/skills/kweaver/SKILL.md` t
 
 - [ ] **Step 2: Rewrite `skills/kweaver-core/SKILL.md`**
 
-Replace content with CLI-only documentation. Keep existing frontmatter. Remove all Python Skill class references. Document all CLI commands including new `ds`, `kn create`, `query subgraph`, `agent sessions`, `agent history`. Include playbooks using only shell commands.
+Replace content with CLI-only documentation. Keep existing frontmatter. Remove all Python Skill class references. Document all CLI commands including new `ds`, `bkn create`, `query subgraph`, `agent sessions`, `agent history`. Include playbooks using only shell commands.
 
 Key sections:
 ```markdown
@@ -1214,7 +1214,7 @@ kweaver auth login <platform-url>
 
 ## Command Reference
 ### Datasources (`kweaver ds`)
-### Knowledge Networks (`kweaver kn`)
+### Knowledge Networks (`kweaver bkn`)
 ### Querying (`kweaver query`)
 ### Actions (`kweaver action`)
 ### Agents (`kweaver agent`)
@@ -1283,7 +1283,7 @@ def _invoke(runner: CliRunner, args: list[str]) -> dict[str, Any]:
 
 
 def test_cli_full_lifecycle(adp_client: KWeaverClient, db_config: dict[str, Any], cli_runner):
-    """End-to-end: ds connect -> kn create -> query search."""
+    """End-to-end: ds connect -> bkn create -> query search."""
     runner = cli_runner
 
     kn_name = "e2e_full_flow_kn"
@@ -1312,20 +1312,20 @@ def test_cli_full_lifecycle(adp_client: KWeaverClient, db_config: dict[str, Any]
     kn_id = None
 
     try:
-        # Step 2: kn create
+        # Step 2: bkn create
         create_result = runner.invoke(cli, [
-            "kn", "create", ds_id,
+            "bkn", "create", ds_id,
             "--name", kn_name,
             "--tables", first_table,
         ])
-        assert create_result.exit_code == 0, f"kn create failed: {create_result.output}"
+        assert create_result.exit_code == 0, f"bkn create failed: {create_result.output}"
         create_data = json.loads(create_result.output.strip().split("\n")[-1])
         kn_id = create_data["kn_id"]
         assert create_data["status"] in ("completed", "failed")
         assert len(create_data["object_types"]) == 1
 
-        # Step 3: kn export (covers LoadKnContextSkill schema mode)
-        export_result = runner.invoke(cli, ["kn", "export", kn_id])
+        # Step 3: bkn export (covers LoadKnContextSkill schema mode)
+        export_result = runner.invoke(cli, ["bkn", "export", kn_id])
         assert export_result.exit_code == 0
 
         # Step 4: query search (if build succeeded)
@@ -1378,7 +1378,7 @@ git commit -m "test(e2e): rewrite full flow test using CLI commands instead of S
 
 ### Task 12: Rewrite `test_context_loader_e2e.py`
 
-Replace `LoadKnContextSkill` with equivalent CLI commands (`kn list`, `kn export`, `query instances`).
+Replace `LoadKnContextSkill` with equivalent CLI commands (`bkn list`, `bkn export`, `query instances`).
 
 **Files:**
 - Modify: `tests/e2e/test_context_loader_e2e.py`
@@ -1408,7 +1408,7 @@ pytestmark = pytest.mark.e2e
 
 def test_kn_list_discovers_knowledge_networks(cli_runner):
     """kn list should return knowledge networks."""
-    result = cli_runner.invoke(cli, ["kn", "list"])
+    result = cli_runner.invoke(cli, ["bkn", "list"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     for kn in data:
@@ -1422,7 +1422,7 @@ def test_kn_export_returns_structure(adp_client: KWeaverClient, cli_runner):
     if not kns:
         pytest.skip("No knowledge networks available")
 
-    result = cli_runner.invoke(cli, ["kn", "export", kns[0].id])
+    result = cli_runner.invoke(cli, ["bkn", "export", kns[0].id])
     assert result.exit_code == 0
     data = json.loads(result.output)
     # Export returns the full KN definition
@@ -1503,7 +1503,7 @@ git add -A
 git commit -m "refactor!: remove kweaver.skills module and integration tests
 
 BREAKING: removed kweaver.skills module; use CLI commands instead.
-Skills orchestration logic has been moved to CLI commands (ds, kn create, etc.)."
+Skills orchestration logic has been moved to CLI commands (ds, bkn create, etc.)."
 ```
 
 ---
@@ -1588,7 +1588,7 @@ Expected: Shows `ds` in command list
 Run: `python -m kweaver.cli.main ds --help`
 Expected: Shows `connect`, `list`, `get`, `delete`, `tables`
 
-Run: `python -m kweaver.cli.main kn --help`
+Run: `python -m kweaver.cli.main bkn --help`
 Expected: Shows `create` alongside existing commands
 
 Run: `python -m kweaver.cli.main query --help`

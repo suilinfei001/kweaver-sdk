@@ -42,21 +42,21 @@ kweaver ds delete <ds-id>
 列表：
 
 ```bash
-kweaver kn list
-kweaver kn list --name erp
+kweaver bkn list
+kweaver bkn list --name erp
 ```
 
 查看详情与导出：
 
 ```bash
-kweaver kn get <kn-id>
-kweaver kn export <kn-id>
+kweaver bkn get <kn-id>
+kweaver bkn export <kn-id>
 ```
 
 创建：
 
 ```bash
-kweaver kn create --name erp_prod --ds-id <datasource-id> \
+kweaver bkn create --name erp_prod --ds-id <datasource-id> \
   --tables products,inventory,suppliers \
   --relations '[{"name":"产品_库存","from_table":"products","to_table":"inventory","from_field":"material_number","to_field":"material_code"}]'
 ```
@@ -64,15 +64,15 @@ kweaver kn create --name erp_prod --ds-id <datasource-id> \
 构建：
 
 ```bash
-kweaver kn build <kn-id>                   # 等待完成
-kweaver kn build <kn-id> --no-wait         # 不等待
-kweaver kn build <kn-id> --timeout 600     # 自定义超时
+kweaver bkn build <kn-id>                   # 等待完成
+kweaver bkn build <kn-id> --no-wait         # 不等待
+kweaver bkn build <kn-id> --timeout 600     # 自定义超时
 ```
 
 删除：
 
 ```bash
-kweaver kn delete <kn-id>
+kweaver bkn delete <kn-id>
 ```
 
 ---
@@ -208,16 +208,16 @@ kweaver ds connect --type mysql --host 10.0.1.100 --port 3306 \
 # -> 记录返回的 datasource_id
 
 # Step 2: 创建知识网络
-kweaver kn create --name erp_prod --ds-id <datasource-id> \
+kweaver bkn create --name erp_prod --ds-id <datasource-id> \
   --tables products,inventory,suppliers \
   --relations '[{"name":"产品_库存","from_table":"products","to_table":"inventory","from_field":"material_number","to_field":"material_code"}]'
 # -> 记录返回的 kn_id
 
 # Step 3: 构建知识网络
-kweaver kn build <kn-id>
+kweaver bkn build <kn-id>
 
 # Step 4: 查看 Schema
-kweaver kn export <kn-id>
+kweaver bkn export <kn-id>
 
 # Step 5: 查询数据
 kweaver query search <kn-id> "高库存的产品"

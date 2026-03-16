@@ -262,10 +262,10 @@ kweaver auth logout                # 登出（同 kweaverc auth logout）
 
 kweaver token                      # 打印 access token
 
-kweaver kn list                    # 列出知识网络
-kweaver kn get <id>                # 查看知识网络
-kweaver kn build <id>              # 构建知识网络
-kweaver kn export <id>             # 导出知识网络
+kweaver bkn list                    # 列出知识网络
+kweaver bkn get <id>                # 查看知识网络
+kweaver bkn build <id>              # 构建知识网络
+kweaver bkn export <id>             # 导出知识网络
 
 kweaver query instances <kn-id> <ot-id> [--condition JSON]
 kweaver query subgraph <kn-id> [--paths JSON]
@@ -395,7 +395,7 @@ kweaver-sdk/
 │   │   ├── __init__.py                     [新]
 │   │   ├── main.py                         [新] click/typer 入口
 │   │   ├── auth.py                         [新] kweaver auth login/status/use/logout
-│   │   ├── kn.py                           [新] kweaver kn list/get/build/export
+│   │   ├── kn.py                           [新] kweaver bkn list/get/build/export
 │   │   ├── query.py                        [新] kweaver query instances/subgraph/search
 │   │   ├── action.py                       [新] kweaver action execute/logs/cancel
 │   │   ├── agent.py                        [新] kweaver agent list/chat

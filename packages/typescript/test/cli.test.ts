@@ -27,7 +27,7 @@ import {
   parseKnObjectTypeQueryArgs,
   parseKnActionTypeExecuteArgs,
   formatSimpleKnList,
-} from "../src/commands/kn.js";
+} from "../src/commands/bkn.js";
 import {
   parseAgentListArgs,
   parseAgentSessionsArgs,
@@ -837,18 +837,18 @@ test("parseAgentListArgs throws on unknown flag", () => {
   );
 });
 
-test("run kn shows subcommand help", async () => {
-  assert.equal(await run(["kn"]), 0);
+test("run bkn shows subcommand help", async () => {
+  assert.equal(await run(["bkn"]), 0);
 });
 
-test("run kn --help shows subcommand help", async () => {
+test("run bkn --help shows subcommand help", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "--help"]), 0);
+    assert.equal(await run(["bkn", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("list [options]"));
     assert.ok(help.includes("export <kn-id>"));
@@ -861,14 +861,14 @@ test("run kn --help shows subcommand help", async () => {
   }
 });
 
-test("run kn get --help shows get options", async () => {
+test("run bkn get --help shows get options", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "get", "--help"]), 0);
+    assert.equal(await run(["bkn", "get", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("Get knowledge network detail"));
     assert.ok(help.includes("--stats"));
@@ -878,14 +878,14 @@ test("run kn get --help shows get options", async () => {
   }
 });
 
-test("run kn list --help shows verbose option", async () => {
+test("run bkn list --help shows verbose option", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "list", "--help"]), 0);
+    assert.equal(await run(["bkn", "list", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("--detail"));
     assert.ok(help.includes("--verbose"));
@@ -895,14 +895,14 @@ test("run kn list --help shows verbose option", async () => {
   }
 });
 
-test("run kn create --help shows create options", async () => {
+test("run bkn create --help shows create options", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "create", "--help"]), 0);
+    assert.equal(await run(["bkn", "create", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("--body-file"));
     assert.ok(help.includes("--import-mode"));
@@ -912,14 +912,14 @@ test("run kn create --help shows create options", async () => {
   }
 });
 
-test("run kn object-type --help shows query and properties usage", async () => {
+test("run bkn object-type --help shows query and properties usage", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "object-type", "--help"]), 0);
+    assert.equal(await run(["bkn", "object-type", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("object-type query"));
     assert.ok(help.includes("object-type properties"));
@@ -932,14 +932,14 @@ test("run kn object-type --help shows query and properties usage", async () => {
   }
 });
 
-test("run kn subgraph --help shows usage", async () => {
+test("run bkn subgraph --help shows usage", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "subgraph", "--help"]), 0);
+    assert.equal(await run(["bkn", "subgraph", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("subgraph <kn-id>"));
     assert.ok(help.includes("'<json>'"));
@@ -948,14 +948,14 @@ test("run kn subgraph --help shows usage", async () => {
   }
 });
 
-test("run kn action-type --help shows query and execute with side effects note", async () => {
+test("run bkn action-type --help shows query and execute with side effects note", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "action-type", "--help"]), 0);
+    assert.equal(await run(["bkn", "action-type", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("action-type query"));
     assert.ok(help.includes("action-type execute"));
@@ -965,14 +965,14 @@ test("run kn action-type --help shows query and execute with side effects note",
   }
 });
 
-test("run kn action-execution --help shows get usage", async () => {
+test("run bkn action-execution --help shows get usage", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "action-execution", "--help"]), 0);
+    assert.equal(await run(["bkn", "action-execution", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("action-execution get"));
     assert.ok(help.includes("<execution-id>"));
@@ -981,14 +981,14 @@ test("run kn action-execution --help shows get usage", async () => {
   }
 });
 
-test("run kn action-log --help shows list get cancel", async () => {
+test("run bkn action-log --help shows list get cancel", async () => {
   const lines: string[] = [];
   const originalLog = console.log;
   console.log = (...args: unknown[]) => {
     lines.push(args.map(String).join(" "));
   };
   try {
-    assert.equal(await run(["kn", "action-log", "--help"]), 0);
+    assert.equal(await run(["bkn", "action-log", "--help"]), 0);
     const help = lines.join("\n");
     assert.ok(help.includes("action-log list"));
     assert.ok(help.includes("action-log get"));

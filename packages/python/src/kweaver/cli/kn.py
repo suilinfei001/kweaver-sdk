@@ -32,9 +32,9 @@ def _detect_display_key(table: Any, primary_key: str) -> str:
     return primary_key
 
 
-@click.group("kn")
+@click.group("bkn")
 def kn_group() -> None:
-    """Manage knowledge networks."""
+    """Manage business knowledge networks."""
 
 
 @kn_group.command("list")

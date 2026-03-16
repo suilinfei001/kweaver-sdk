@@ -19,7 +19,7 @@ pytestmark = pytest.mark.e2e
 
 def test_kn_list_discovers_knowledge_networks(cli_runner):
     """kn list should return knowledge networks."""
-    result = cli_runner.invoke(cli, ["kn", "list"])
+    result = cli_runner.invoke(cli, ["bkn", "list"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     for kn in data:
@@ -32,7 +32,7 @@ def test_kn_export_returns_structure(kweaver_client: KWeaverClient, cli_runner):
     kns = kweaver_client.knowledge_networks.list()
     if not kns:
         pytest.skip("No knowledge networks available")
-    result = cli_runner.invoke(cli, ["kn", "export", kns[0].id])
+    result = cli_runner.invoke(cli, ["bkn", "export", kns[0].id])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert isinstance(data, dict)

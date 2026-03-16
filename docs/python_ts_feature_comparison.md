@@ -53,17 +53,17 @@
 
 | 功能点 | Python 测试 | TS 测试 | 等价 |
 |--------|:-:|:-:|:-:|
-| `kn list` | `test_kn_list` | `listKnowledgeNetworks maps query filters` | ✅ |
-| `kn list` 分页 | `test_kn_list_with_pagination` | `parseKnListArgs parses custom offset limit sort direction` | ✅ |
-| `kn list` 格式化 | — | `formatSimpleKnList keeps only name id description` (2 tests) | ⚠️ Py 无 |
-| `kn get` | `test_kn_get` | `getKnowledgeNetwork maps export and stats` | ✅ |
-| `kn create` | `test_kn_create` / `test_kn_create_no_build` / `test_kn_create_with_tables_filter` | `createKnowledgeNetwork maps query params and JSON body` + `parseKnCreateArgs *` (2 tests) | ✅ |
-| `kn update` | `test_kn_update` | `updateKnowledgeNetwork maps path and JSON body` + `parseKnUpdateArgs *` (2 tests) | ✅ |
-| `kn delete` | — | `deleteKnowledgeNetwork maps method and path` + `parseKnDeleteArgs *` (6 tests) | ⚠️ Py 无 |
-| `kn export` | `test_kn_export` | `getKnowledgeNetwork` (export=true) | ✅ |
-| `kn stats` | `test_kn_stats` | `getKnowledgeNetwork` (stats=true) | ✅ |
-| `kn build` (含 wait) | `test_kn_build_wait` / `test_kn_build_no_wait` | — | ⚠️ TS 无 |
-| `kn` help 文本 | — | `run kn shows subcommand help` + 8 个 help 测试 | ⚠️ Py 无 |
+| `bkn list` | `test_kn_list` | `listKnowledgeNetworks maps query filters` | ✅ |
+| `bkn list` 分页 | `test_kn_list_with_pagination` | `parseKnListArgs parses custom offset limit sort direction` | ✅ |
+| `bkn list` 格式化 | — | `formatSimpleKnList keeps only name id description` (2 tests) | ⚠️ Py 无 |
+| `bkn get` | `test_kn_get` | `getKnowledgeNetwork maps export and stats` | ✅ |
+| `bkn create` | `test_kn_create` / `test_kn_create_no_build` / `test_kn_create_with_tables_filter` | `createKnowledgeNetwork maps query params and JSON body` + `parseKnCreateArgs *` (2 tests) | ✅ |
+| `bkn update` | `test_kn_update` | `updateKnowledgeNetwork maps path and JSON body` + `parseKnUpdateArgs *` (2 tests) | ✅ |
+| `bkn delete` | — | `deleteKnowledgeNetwork maps method and path` + `parseKnDeleteArgs *` (6 tests) | ⚠️ Py 无 |
+| `bkn export` | `test_kn_export` | `getKnowledgeNetwork` (export=true) | ✅ |
+| `bkn stats` | `test_kn_stats` | `getKnowledgeNetwork` (stats=true) | ✅ |
+| `bkn build` (含 wait) | `test_kn_build_wait` / `test_kn_build_no_wait` | — | ⚠️ TS 无 |
+| `bkn` help 文本 | — | `run bkn shows subcommand help` + 8 个 help 测试 | ⚠️ Py 无 |
 | object-type query | — | `objectTypeQuery maps path body` + `parseKnObjectTypeQueryArgs *` (4 tests) | ⚠️ Py 无 |
 | object-type properties | — | `objectTypeProperties maps path and body` | ⚠️ Py 无 |
 | subgraph 查询 | `test_query_subgraph` / `test_query_subgraph_rt_not_found` | `subgraph maps path and body` | ✅ |
@@ -197,7 +197,7 @@
 
 **核心等价功能已对齐**：auth 管理、kn CRUD、agent 会话管理、action 执行/日志、context-loader MCP、通用 API 调用、配置存储——共 31 个功能点在两套 CLI 中行为一致。
 
-**Python 独有**（21 项）：主要是 SDK 层的 Resources API（数据源、数据视图、对象类/关系类 CRUD、Conversation CRUD），以及 `kn build`、`query` 子命令等。
+**Python 独有**（21 项）：主要是 SDK 层的 Resources API（数据源、数据视图、对象类/关系类 CRUD、Conversation CRUD），以及 `bkn build`、`query` 子命令等。
 
 **TypeScript 独有**（32 项）：主要是更精细的单元测试（参数解析、文本处理、help 文本验证），以及 MCP 协议的完整覆盖（resources/read、templates、prompts），和 Ink TUI 交互式 agent chat。
 

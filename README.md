@@ -41,7 +41,7 @@ kns = client.knowledge_networks.list()
 | **Python CLI** | `pip install kweaver-sdk[cli]` | 备用 CLI，功能对齐，用于测试或纯 Python 环境 |
 | **Python SDK** | `pip install kweaver-sdk` | 程序化 API，`from kweaver import KWeaverClient` |
 
-两套 CLI 命令结构完全一致（`kweaver auth`、`kweaver kn`、`kweaver agent`、`kweaver context-loader` 等），凭据共享 `~/.kweaver/`。
+两套 CLI 命令结构完全一致（`kweaver auth`、`kweaver bkn`、`kweaver agent`、`kweaver context-loader` 等），凭据共享 `~/.kweaver/`。
 
 ## 认证
 
@@ -57,12 +57,12 @@ kweaver auth login https://your-kweaver-instance.com --alias prod
 ```bash
 kweaver auth login/status/list/use/delete/logout
 kweaver token
-kweaver kn list/get/stats/export/create/update/delete
-kweaver kn object-type query/properties
-kweaver kn subgraph
-kweaver kn action-type query/execute
-kweaver kn action-execution get
-kweaver kn action-log list/get/cancel
+kweaver bkn list/get/stats/export/create/update/delete
+kweaver bkn object-type query/properties
+kweaver bkn subgraph
+kweaver bkn action-type query/execute
+kweaver bkn action-execution get
+kweaver bkn action-log list/get/cancel
 kweaver agent list/chat/sessions/history
 kweaver context-loader config set/use/list/show
 kweaver context-loader kn-search/query-object-instance/...

@@ -1,6 +1,6 @@
 import { runAgentCommand } from "./commands/agent.js";
 import { runAuthCommand } from "./commands/auth.js";
-import { runKnCommand } from "./commands/kn.js";
+import { runKnCommand } from "./commands/bkn.js";
 import { runCallCommand } from "./commands/call.js";
 import { runContextLoaderCommand } from "./commands/context-loader.js";
 import { runTokenCommand } from "./commands/token.js";
@@ -21,11 +21,11 @@ Usage:
   kweaver call <url> [-X METHOD] [-H "Name: value"] [-d BODY] [--pretty] [--verbose] [-bd value]
   kweaver agent chat <agent_id> [-m "message"] [--version value] [--conversation-id id] [--stream] [--no-stream] [--verbose] [-bd value]
   kweaver agent list [options]
-  kweaver kn list [options]
-  kweaver kn get <kn-id> [options]
-  kweaver kn create [options]
-  kweaver kn update <kn-id> [options]
-  kweaver kn delete <kn-id>
+  kweaver bkn list [options]
+  kweaver bkn get <kn-id> [options]
+  kweaver bkn create [options]
+  kweaver bkn update <kn-id> [options]
+  kweaver bkn delete <kn-id>
   kweaver context-loader [config|kn-search|...]
   kweaver --help
 
@@ -34,7 +34,7 @@ Commands:
   token          Print the current access token, refreshing it first if needed
   call           Call an API with curl-style flags and auto-injected token headers
   agent          Chat with a KWeaver agent (agent chat <id>), list published agents (agent list)
-  kn            Knowledge network (list/get/create/update/delete/export/stats; object-type, subgraph, action-type, action-log)
+  bkn           Business knowledge network (list/get/create/update/delete/export/stats; object-type, subgraph, action-type, action-log)
   context-loader Call context-loader MCP (tools, resources, prompts; kn-search, query-*, etc.)
   help           Show this message`);
 }
@@ -63,7 +63,7 @@ export async function run(argv: string[]): Promise<number> {
     return runAgentCommand(rest);
   }
 
-  if (command === "kn") {
+  if (command === "bkn") {
     return runKnCommand(rest);
   }
 

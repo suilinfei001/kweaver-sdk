@@ -65,7 +65,7 @@ def test_cli_full_lifecycle(kweaver_client: KWeaverClient, db_config: dict[str, 
     try:
         # Step 2: kn create
         create_result = runner.invoke(cli, [
-            "kn", "create", ds_id, "--name", kn_name, "--tables", first_table,
+            "bkn", "create", ds_id, "--name", kn_name, "--tables", first_table,
         ])
         assert create_result.exit_code == 0, f"kn create failed: {create_result.output}"
         create_data = _extract_json(create_result.output)
@@ -74,7 +74,7 @@ def test_cli_full_lifecycle(kweaver_client: KWeaverClient, db_config: dict[str, 
         assert len(create_data["object_types"]) == 1
 
         # Step 3: kn export
-        export_result = runner.invoke(cli, ["kn", "export", kn_id])
+        export_result = runner.invoke(cli, ["bkn", "export", kn_id])
         assert export_result.exit_code == 0
 
         # Step 4: query search (if build succeeded)
