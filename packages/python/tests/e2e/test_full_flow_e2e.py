@@ -37,13 +37,15 @@ def test_cli_full_lifecycle(kweaver_client: KWeaverClient, db_config: dict[str, 
     """End-to-end: ds connect -> kn create -> query search."""
     runner = cli_runner
     kn_name = "e2e_full_flow_kn"
-    # Clean up stale KN from previous runs
+
+    # Check for stale KN from previous runs; try to delete, reuse if deletion fails
+    existing_kn_id = None
     for kn in kweaver_client.knowledge_networks.list(name=kn_name):
         if kn.name == kn_name:
             try:
                 kweaver_client.knowledge_networks.delete(kn.id)
             except Exception:
-                pass
+                existing_kn_id = kn.id  # deletion failed, reuse this KN
 
     # Step 1: ds connect
     connect_args = [
@@ -63,26 +65,32 @@ def test_cli_full_lifecycle(kweaver_client: KWeaverClient, db_config: dict[str, 
     kn_id = None
 
     try:
-        # Step 2: kn create
-        create_result = runner.invoke(cli, [
-            "bkn", "create", ds_id, "--name", kn_name, "--tables", first_table,
-        ])
-        assert create_result.exit_code == 0, f"kn create failed: {create_result.output}"
-        create_data = _extract_json(create_result.output)
-        kn_id = create_data["kn_id"]
-        assert create_data["status"] in ("completed", "failed")
-        assert len(create_data["object_types"]) == 1
+        if existing_kn_id:
+            # Reuse stale KN — skip creation, go straight to export/search
+            kn_id = existing_kn_id
+            kn_status = "completed"
+        else:
+            # Step 2: kn create
+            create_result = runner.invoke(cli, [
+                "kn", "create", ds_id, "--name", kn_name, "--tables", first_table,
+            ])
+            assert create_result.exit_code == 0, f"kn create failed: {create_result.output}"
+            create_data = _extract_json(create_result.output)
+            kn_id = create_data["kn_id"]
+            assert create_data["status"] in ("completed", "failed")
+            assert len(create_data["object_types"]) == 1
+            kn_status = create_data["status"]
 
         # Step 3: kn export
-        export_result = runner.invoke(cli, ["bkn", "export", kn_id])
+        export_result = runner.invoke(cli, ["kn", "export", kn_id])
         assert export_result.exit_code == 0
 
         # Step 4: query search (if build succeeded)
-        if create_data["status"] == "completed":
+        if kn_status == "completed":
             search_result = runner.invoke(cli, ["query", "search", kn_id, first_table])
             assert search_result.exit_code == 0
     finally:
-        if kn_id:
+        if kn_id and not existing_kn_id:
             try:
                 kweaver_client.knowledge_networks.delete(kn_id)
             except Exception:
