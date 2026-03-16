@@ -59,10 +59,11 @@ def test_build_knowledge_network(
     assert kn.id
 
     # 4. Create object type — pick first suitable column as PK
+    # Use kn.id[:8] suffix: KWeaver object type names are globally unique
     pk_col = table.columns[0].name
     ot = kweaver_client.object_types.create(
         kn.id,
-        name=f"e2e_{table.name}",
+        name=f"e2e_{table.name}_{kn.id[:8]}",
         dataview_id=dv.id,
         primary_keys=[pk_col],
         display_key=pk_col,
@@ -87,12 +88,13 @@ def test_build_with_relation(
 
     kn = create_knowledge_network(name="e2e_rel_kn")
 
+    # Use kn.id[:8] suffix: KWeaver object type names are globally unique
     ot1 = kweaver_client.object_types.create(
-        kn.id, name=f"e2e_{t1.name}", dataview_id=dv1.id,
+        kn.id, name=f"e2e_{t1.name}_{kn.id[:8]}", dataview_id=dv1.id,
         primary_keys=[t1.columns[0].name], display_key=t1.columns[0].name,
     )
     ot2 = kweaver_client.object_types.create(
-        kn.id, name=f"e2e_{t2.name}", dataview_id=dv2.id,
+        kn.id, name=f"e2e_{t2.name}_{kn.id[:8]}", dataview_id=dv2.id,
         primary_keys=[t2.columns[0].name], display_key=t2.columns[0].name,
     )
     assert ot1.id
@@ -101,7 +103,7 @@ def test_build_with_relation(
     # Create a direct relation using first column of each
     rt = kweaver_client.relation_types.create(
         kn.id,
-        name=f"e2e_{t1.name}_{t2.name}",
+        name=f"e2e_{t1.name}_{t2.name}_{kn.id[:8]}",
         source_ot_id=ot1.id,
         target_ot_id=ot2.id,
         mappings=[(t1.columns[0].name, t2.columns[0].name)],
