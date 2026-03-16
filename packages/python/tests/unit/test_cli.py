@@ -28,7 +28,7 @@ def _mock_client():
 def test_cli_help(runner):
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("auth", "bkn", "query", "action", "agent", "call", "ds"):
+    for cmd in ("auth", "kn", "query", "action", "agent", "call", "ds"):
         assert cmd in result.output
 
 
@@ -99,7 +99,7 @@ def test_kn_list(runner):
         client.knowledge_networks.list.return_value = [mock_kn]
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "list"])
+        result = runner.invoke(cli, ["kn", "list"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data[0]["id"] == "kn1"
@@ -113,7 +113,7 @@ def test_kn_get(runner):
         client.knowledge_networks.get.return_value = mock_kn
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "get", "kn1"])
+        result = runner.invoke(cli, ["kn", "get", "kn1"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["id"] == "kn1"
@@ -130,7 +130,7 @@ def test_kn_get_with_stats(runner):
         client.knowledge_networks.get.return_value = mock_kn
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "get", "kn1", "--stats"])
+        result = runner.invoke(cli, ["kn", "get", "kn1", "--stats"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["object_types_total"] == 5
@@ -143,7 +143,7 @@ def test_kn_export(runner):
         client.knowledge_networks.export.return_value = {"object_types": []}
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "export", "kn1"])
+        result = runner.invoke(cli, ["kn", "export", "kn1"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "object_types" in data
@@ -155,7 +155,7 @@ def test_kn_get_with_export(runner):
         client.knowledge_networks.export.return_value = {"object_types": [], "relation_types": []}
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "get", "kn1", "--export"])
+        result = runner.invoke(cli, ["kn", "get", "kn1", "--export"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "object_types" in data
@@ -174,7 +174,7 @@ def test_kn_build_wait(runner):
         client.knowledge_networks.build.return_value = mock_job
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "build", "kn1"])
+        result = runner.invoke(cli, ["kn", "build", "kn1"])
         assert result.exit_code == 0
         assert "completed" in result.output
 
@@ -185,7 +185,7 @@ def test_kn_build_no_wait(runner):
         client.knowledge_networks.build.return_value = MagicMock()
         mock_make.return_value = client
 
-        result = runner.invoke(cli, ["bkn", "build", "--no-wait", "kn1"])
+        result = runner.invoke(cli, ["kn", "build", "--no-wait", "kn1"])
         assert result.exit_code == 0
         assert "not waiting" in result.output
 
@@ -588,7 +588,7 @@ def test_kn_create(runner):
         mock_job.wait.return_value = mock_status
         client.knowledge_networks.build.return_value = mock_job
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "create", "ds1", "--name", "test_kn"])
+        result = runner.invoke(cli, ["kn", "create", "ds1", "--name", "test_kn"])
         assert result.exit_code == 0
         data = _extract_json(result.output)
         assert data["kn_id"] == "kn1"
@@ -611,7 +611,7 @@ def test_kn_create_no_build(runner):
         mock_ot = MagicMock(); mock_ot.id = "ot1"; mock_ot.name = "items"
         client.object_types.create.return_value = mock_ot
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "create", "ds1", "--name", "no_build_kn", "--no-build"])
+        result = runner.invoke(cli, ["kn", "create", "ds1", "--name", "no_build_kn", "--no-build"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "skipped"
@@ -634,7 +634,7 @@ def test_kn_create_with_tables_filter(runner):
         mock_job.wait.return_value = mock_status
         client.knowledge_networks.build.return_value = mock_job
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "create", "ds1", "--name", "filtered", "--tables", "users"])
+        result = runner.invoke(cli, ["kn", "create", "ds1", "--name", "filtered", "--tables", "users"])
         assert result.exit_code == 0
         assert client.object_types.create.call_count == 1
 
@@ -836,7 +836,7 @@ def test_kn_stats(runner):
         mock_kn.statistics = mock_stats
         client.knowledge_networks.get.return_value = mock_kn
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "stats", "kn1"])
+        result = runner.invoke(cli, ["kn", "stats", "kn1"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["object_types_total"] == 3
@@ -850,7 +850,7 @@ def test_kn_update(runner):
         mock_kn.model_dump.return_value = {"id": "kn1", "name": "new-name"}
         client.knowledge_networks.update.return_value = mock_kn
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "update", "kn1", "--name", "new-name"])
+        result = runner.invoke(cli, ["kn", "update", "kn1", "--name", "new-name"])
         assert result.exit_code == 0
         client.knowledge_networks.update.assert_called_once_with("kn1", name="new-name")
 
@@ -865,7 +865,7 @@ def test_kn_list_with_pagination(runner):
         mock_kn.model_dump.return_value = {"id": "kn1", "name": "alpha", "tags": ["demo"]}
         client.knowledge_networks.list.return_value = [mock_kn]
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "list", "--limit", "5", "--offset", "0"])
+        result = runner.invoke(cli, ["kn", "list", "--limit", "5", "--offset", "0"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data[0]["id"] == "kn1"
@@ -880,7 +880,7 @@ def test_kn_action_log_cancel_with_yes(runner):
     with patch("kweaver.cli.kn.make_client") as mock_make:
         client = _mock_client()
         mock_make.return_value = client
-        result = runner.invoke(cli, ["bkn", "action-log", "cancel", "kn1", "log1", "--yes"])
+        result = runner.invoke(cli, ["kn", "action-log", "cancel", "kn1", "log1", "--yes"])
         assert result.exit_code == 0
         client.action_types.cancel.assert_called_once_with("kn1", "log1")
         assert "Cancelled" in result.output

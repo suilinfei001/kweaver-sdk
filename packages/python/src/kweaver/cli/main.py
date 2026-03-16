@@ -23,7 +23,7 @@ def cli() -> None:
 
 cli.add_command(auth_group, "auth")
 cli.add_command(ds_group, "ds")
-cli.add_command(kn_group, "bkn")
+cli.add_command(kn_group, "kn")
 cli.add_command(query_group, "query")
 cli.add_command(action_group, "action")
 cli.add_command(agent_group, "agent")
