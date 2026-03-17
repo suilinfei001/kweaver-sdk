@@ -1,0 +1,211 @@
+"""Tests for the module-level top-level API (kweaver.configure / search / chat / agents)."""
+
+from __future__ import annotations
+
+import json
+
+import httpx
+import pytest
+
+import kweaver
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_transport(responses: dict[str, object]):
+    """Return an httpx transport that dispatches by URL path."""
+    def handler(req: httpx.Request) -> httpx.Response:
+        path = req.url.path
+        for pattern, body in responses.items():
+            if pattern in path:
+                return httpx.Response(200, json=body)
+        return httpx.Response(404, json={"error": "not found"})
+    return httpx.MockTransport(handler)
+
+
+def _configure(responses: dict[str, object], kn_id: str = "kn1", agent_id: str = "agent1") -> None:
+    transport = _make_transport(responses)
+    # Patch the client after configure by injecting the mock transport
+    kweaver.configure("https://mock", token="test-token", kn_id=kn_id, agent_id=agent_id)
+    kweaver._default_client._http._client = httpx.Client(
+        base_url="https://mock",
+        transport=transport,
+    )
+
+
+# ---------------------------------------------------------------------------
+# configure()
+# ---------------------------------------------------------------------------
+
+class TestConfigure:
+    def setup_method(self):
+        # Reset global state before each test
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_token_auth(self):
+        kweaver.configure("https://example.com", token="tok123")
+        assert kweaver._default_client is not None
+
+    def test_username_password_auth(self):
+        kweaver.configure("https://example.com", username="user", password="pass")
+        assert kweaver._default_client is not None
+
+    def test_sets_defaults(self):
+        kweaver.configure("https://example.com", token="tok", kn_id="kn99", agent_id="ag99")
+        assert kweaver._default_kn_id == "kn99"
+        assert kweaver._default_agent_id == "ag99"
+
+    def test_no_auth_raises(self):
+        with pytest.raises(ValueError, match="Provide token="):
+            kweaver.configure("https://example.com")
+
+    def test_require_client_before_configure(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver._require_client()
+
+
+# ---------------------------------------------------------------------------
+# search()
+# ---------------------------------------------------------------------------
+
+class TestSearch:
+    def setup_method(self):
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_search_with_default_kn_id(self):
+        semantic_response = {
+            "concepts": [
+                {
+                    "concept_type": "产品",
+                    "concept_id": "c1",
+                    "concept_name": "KWeaver",
+                    "intent_score": 0.9,
+                    "match_score": 0.8,
+                    "rerank_score": 0.85,
+                }
+            ],
+            "hits_total": 1,
+        }
+        _configure({"/semantic-search": semantic_response}, kn_id="kn1")
+        result = kweaver.search("KWeaver 能做什么？")
+        assert result.hits_total == 1
+        assert result.concepts[0].concept_name == "KWeaver"
+
+    def test_search_with_explicit_kn_id(self):
+        semantic_response = {"concepts": [], "hits_total": 0}
+        _configure({"/semantic-search": semantic_response}, kn_id="kn1")
+        result = kweaver.search("test", kn_id="kn_other")
+        assert result.hits_total == 0
+
+    def test_search_no_kn_id_raises(self):
+        kweaver.configure("https://mock", token="tok")
+        with pytest.raises(ValueError, match="No kn_id"):
+            kweaver.search("query without kn_id")
+
+    def test_search_not_configured_raises(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver.search("query")
+
+
+# ---------------------------------------------------------------------------
+# agents()
+# ---------------------------------------------------------------------------
+
+class TestAgents:
+    def setup_method(self):
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_list_agents(self):
+        agent_response = [
+            {"id": "a1", "name": "助手A", "status": "published"},
+            {"id": "a2", "name": "助手B", "status": "published"},
+        ]
+        _configure({"/agent-list": agent_response})
+        result = kweaver.agents()
+        assert len(result) == 2
+        assert result[0].name == "助手A"
+
+    def test_agents_not_configured_raises(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver.agents()
+
+
+# ---------------------------------------------------------------------------
+# chat()
+# ---------------------------------------------------------------------------
+
+class TestChat:
+    def setup_method(self):
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_chat_with_default_agent_id(self):
+        chat_response = {
+            "message": {
+                "id": "msg1",
+                "role": "assistant",
+                "content": "KWeaver 是一个知识网络平台。",
+                "timestamp": "2026-03-17T00:00:00Z",
+            },
+            "conversation_id": "conv1",
+        }
+        _configure({"/chat/completion": chat_response}, agent_id="agent1")
+        reply = kweaver.chat("KWeaver 是什么？")
+        assert "KWeaver" in reply.content
+
+    def test_chat_with_explicit_agent_id(self):
+        chat_response = {
+            "message": {
+                "id": "msg2",
+                "role": "assistant",
+                "content": "你好！",
+                "timestamp": "2026-03-17T00:00:00Z",
+            },
+            "conversation_id": "conv2",
+        }
+        _configure({"/chat/completion": chat_response})
+        reply = kweaver.chat("你好", agent_id="agent_explicit")
+        assert reply.content == "你好！"
+
+    def test_chat_no_agent_id_raises(self):
+        kweaver.configure("https://mock", token="tok")
+        with pytest.raises(ValueError, match="No agent_id"):
+            kweaver.chat("hello without agent")
+
+    def test_chat_not_configured_raises(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver.chat("hello")
+
+
+# ---------------------------------------------------------------------------
+# knowledge_networks()
+# ---------------------------------------------------------------------------
+
+class TestKnowledgeNetworks:
+    def setup_method(self):
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_list_kns(self):
+        kn_response = [
+            {"id": "kn1", "name": "供应链知识网络", "tags": []},
+            {"id": "kn2", "name": "人力资源知识网络", "tags": []},
+        ]
+        _configure({"/knowledge-networks": kn_response})
+        result = kweaver.knowledge_networks()
+        assert len(result) == 2
+        assert result[0].name == "供应链知识网络"
+
+    def test_kns_not_configured_raises(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver.knowledge_networks()
