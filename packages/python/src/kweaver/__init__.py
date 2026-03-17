@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Iterator
 
 from kweaver._auth import ConfigAuth, OAuth2Auth, OAuth2BrowserAuth, PasswordAuth, TokenAuth
@@ -62,7 +63,7 @@ _default_agent_id: str | None = None
 # ── configure() ───────────────────────────────────────────────────────────────
 
 def configure(
-    url: str,
+    url: str | None = None,
     *,
     token: str | None = None,
     username: str | None = None,
@@ -73,10 +74,11 @@ def configure(
 ) -> None:
     """Initialize the default KWeaver client.
 
-    Auth priority: token > username+password > config file.
+    Auth priority: config > token > username+password.
 
     Args:
         url: KWeaver base URL, e.g. "https://kweaver.example.com".
+            Required unless config=True or KWEAVER_BASE_URL env var is set.
         token: Bearer token for TokenAuth.
         username: Username for PasswordAuth (requires password).
         password: Password for PasswordAuth (requires username).
@@ -86,24 +88,34 @@ def configure(
         bkn_id: Default BKN ID used by search() and weaver().
         agent_id: Default agent ID used by chat().
 
-    Example::
+    Examples::
 
+        # Zero-config: uses saved credentials from `kweaver auth login`
         import kweaver
+        kweaver.configure(config=True, bkn_id="abc123", agent_id="ag1")
+
+        # Explicit credentials
         kweaver.configure("https://kweaver.example.com", token="my-token", bkn_id="abc123")
     """
     global _default_client, _default_bkn_id, _default_agent_id
 
-    if token:
-        auth = TokenAuth(token)
-        _default_client = KWeaverClient(base_url=url, auth=auth)
-    elif username and password:
-        auth = PasswordAuth(base_url=url, username=username, password=password)
-        _default_client = KWeaverClient(base_url=url, auth=auth)
-    elif config:
+    if config:
         # ConfigAuth carries its own base_url from ~/.kweaver/ — do not pass url
         # to avoid sending credentials to the wrong environment.
         auth = ConfigAuth()
         _default_client = KWeaverClient(auth=auth)
+    elif token:
+        effective_url = url or os.environ.get("KWEAVER_BASE_URL")
+        if not effective_url:
+            raise ValueError("Provide url=, config=True, or set KWEAVER_BASE_URL")
+        auth = TokenAuth(token)
+        _default_client = KWeaverClient(base_url=effective_url, auth=auth)
+    elif username and password:
+        effective_url = url or os.environ.get("KWEAVER_BASE_URL")
+        if not effective_url:
+            raise ValueError("Provide url=, config=True, or set KWEAVER_BASE_URL")
+        auth = PasswordAuth(base_url=effective_url, username=username, password=password)
+        _default_client = KWeaverClient(base_url=effective_url, auth=auth)
     else:
         raise ValueError("Provide token=, username+password=, or config=True")
     _default_bkn_id = bkn_id

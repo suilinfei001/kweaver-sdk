@@ -303,3 +303,67 @@ test("weaver throws when no bknId configured or provided", async () => {
     /bknId/
   );
 });
+
+// ── weaver fallback (ontology-manager) ────────────────────────────────────────
+
+test("weaver falls back to ontology-manager when agent-retrieval build 404s", async () => {
+  kweaver.configure({ baseUrl: BASE, accessToken: TOKEN, bknId: "bkn-1" });
+  let fallbackCalled = false;
+
+  await withFetch(
+    async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("full_build_ontology")) {
+        return new Response("not found", { status: 404 });
+      }
+      if (url.includes("ontology-manager/in/v1/knowledge-networks")) {
+        fallbackCalled = true;
+        return new Response("", { status: 200 });
+      }
+      return new Response("", { status: 200 });
+    },
+    async () => {
+      await kweaver.weaver();
+      assert.ok(fallbackCalled, "should have called ontology-manager fallback");
+    }
+  );
+});
+
+test("weaver wait=true uses ontology-manager job status when agent-retrieval status 404s", async () => {
+  kweaver.configure({ baseUrl: BASE, accessToken: TOKEN, bknId: "bkn-1" });
+  let statusFallbackCalled = false;
+
+  await withFetch(
+    async (input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("full_build_ontology")) {
+        return new Response("", { status: 200 });
+      }
+      if (url.includes("full_ontology_building_status")) {
+        return new Response("not found", { status: 404 });
+      }
+      if (url.includes("ontology-manager/in/v1/knowledge-networks")) {
+        statusFallbackCalled = true;
+        return new Response(JSON.stringify([{ state: "completed" }]), { status: 200 });
+      }
+      return new Response("", { status: 200 });
+    },
+    async () => {
+      const result = await kweaver.weaver({ wait: true, interval: 1 });
+      assert.equal((result as { state: string })?.state, "completed");
+      assert.ok(statusFallbackCalled, "should have polled ontology-manager for status");
+    }
+  );
+});
+
+test("weaver succeeds silently when both build endpoints 404 (no-build deployment)", async () => {
+  kweaver.configure({ baseUrl: BASE, accessToken: TOKEN, bknId: "bkn-1" });
+
+  await withFetch(
+    async () => new Response("not found", { status: 404 }),
+    async () => {
+      // Should not throw
+      await assert.doesNotReject(() => kweaver.weaver());
+    }
+  );
+});

@@ -11,6 +11,10 @@ import {
 import { fetchTextOrThrow } from "../utils/http.js";
 import type { ClientContext } from "../client.js";
 
+function is404(err: unknown): boolean {
+  return !!(err && typeof err === "object" && "status" in err && (err as { status: number }).status === 404);
+}
+
 export interface BuildStatus {
   state: "running" | "completed" | "failed" | string;
   state_detail?: string;
@@ -90,46 +94,76 @@ export class KnowledgeNetworksResource {
    */
   async build(bknId: string): Promise<void> {
     const { baseUrl, accessToken, businessDomain } = this.ctx.base();
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: accessToken,
+      "x-business-domain": businessDomain,
+    };
     try {
       await fetchTextOrThrow(
         `${baseUrl}/api/agent-retrieval/in/v1/kn/full_build_ontology`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: accessToken,
-            "x-business-domain": businessDomain,
-          },
-          body: JSON.stringify({ kn_id: bknId }),
-        }
+        { method: "POST", headers, body: JSON.stringify({ kn_id: bknId }) }
       );
     } catch (err: unknown) {
-      // 404 means the endpoint doesn't exist on this deployment — ignore
-      if (err && typeof err === "object" && "status" in err && (err as { status: number }).status === 404) return;
-      throw err;
+      if (!is404(err)) throw err;
+      // Fallback: call ontology-manager jobs endpoint directly
+      try {
+        await fetchTextOrThrow(
+          `${baseUrl}/api/ontology-manager/in/v1/knowledge-networks/${encodeURIComponent(bknId)}/jobs`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ name: `sdk_build_${bknId.slice(0, 8)}`, job_type: "full" }),
+          }
+        );
+      } catch (err2: unknown) {
+        if (is404(err2)) {
+          // No build endpoint available on this deployment — skip silently
+          return;
+        }
+        throw err2;
+      }
     }
   }
 
   /** Poll build status for a BKN. */
   async buildStatus(bknId: string): Promise<BuildStatus> {
     const { baseUrl, accessToken, businessDomain } = this.ctx.base();
+    const headers = {
+      Authorization: accessToken,
+      "x-business-domain": businessDomain,
+    };
     try {
       const { body } = await fetchTextOrThrow(
         `${baseUrl}/api/agent-retrieval/in/v1/kn/full_ontology_building_status?kn_id=${encodeURIComponent(bknId)}`,
-        {
-          headers: {
-            Authorization: accessToken,
-            "x-business-domain": businessDomain,
-          },
-        }
+        { headers }
       );
       const data = JSON.parse(body) as Record<string, unknown>;
       return { state: (data.state as string) ?? "running", state_detail: data.state_detail as string | undefined };
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "status" in err && (err as { status: number }).status === 404) {
+      if (!is404(err)) throw err;
+      // Fallback: check ontology-manager jobs for latest status
+      try {
+        const { body } = await fetchTextOrThrow(
+          `${baseUrl}/api/ontology-manager/in/v1/knowledge-networks/${encodeURIComponent(bknId)}/jobs?limit=1&direction=desc`,
+          { headers }
+        );
+        const data = JSON.parse(body) as unknown;
+        const jobs: Array<Record<string, unknown>> = Array.isArray(data)
+          ? (data as Array<Record<string, unknown>>)
+          : data && typeof data === "object" && "entries" in data
+            ? ((data as { entries: Array<Record<string, unknown>> }).entries ?? [])
+            : data && typeof data === "object" && "data" in data
+              ? ((data as { data: Array<Record<string, unknown>> }).data ?? [])
+              : [];
+        if (jobs.length > 0) {
+          return { state: (jobs[0].state as string) ?? "running" };
+        }
         return { state: "completed" };
+      } catch (err2: unknown) {
+        if (is404(err2)) return { state: "completed" };
+        throw err2;
       }
-      throw err;
     }
   }
 

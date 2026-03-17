@@ -58,6 +58,28 @@ class TestConfigure:
         with pytest.raises(ValueError, match="Provide token="):
             kweaver.configure("https://example.com")
 
+    def test_no_url_raises_when_token_provided(self):
+        """url must be provided when using token auth without env var."""
+        import os
+        orig = os.environ.pop("KWEAVER_BASE_URL", None)
+        try:
+            with pytest.raises(ValueError, match="KWEAVER_BASE_URL"):
+                kweaver.configure(token="tok")
+        finally:
+            if orig is not None:
+                os.environ["KWEAVER_BASE_URL"] = orig
+
+    def test_config_true_does_not_require_url(self, monkeypatch):
+        """configure(config=True) must accept no url — the documented zero-config path."""
+        # Patch KWeaverClient to avoid real I/O while verifying configure() accepts no url
+        sentinel = object()
+        monkeypatch.setattr(kweaver, "KWeaverClient", lambda **_kw: sentinel)
+        monkeypatch.setattr(kweaver, "ConfigAuth", lambda: None)
+        # Must not raise TypeError: configure() missing required positional argument 'url'
+        kweaver.configure(config=True, bkn_id="abc", agent_id="ag1")
+        assert kweaver._default_client is sentinel
+        assert kweaver._default_bkn_id == "abc"
+
     def test_require_client_before_configure(self):
         with pytest.raises(RuntimeError, match="kweaver.configure()"):
             kweaver._require_client()
