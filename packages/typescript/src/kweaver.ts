@@ -175,7 +175,7 @@ export async function agents(
  */
 export async function chat(
   message: string,
-  opts: { agentId?: string; conversationId?: string; stream?: false } = {}
+  opts: { agentId?: string; conversationId?: string } = {}
 ): Promise<ChatResult> {
   const client = requireClient();
   const agentId = requireAgentId(opts.agentId);
