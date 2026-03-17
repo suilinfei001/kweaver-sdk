@@ -1,18 +1,22 @@
 # KWeaver Python SDK
 
-简洁的 Python 接口，用于访问 KWeaver BKN（Business Knowledge Network）和 Agent。
+A clean Python interface for accessing KWeaver BKN (Business Knowledge Network) and Decision Agents.
 
-## 安装
+[中文文档](README.zh.md)
+
+## Installation
 
 ```bash
 pip install kweaver-sdk
 ```
 
-## 快速上手
+Requires **Python >= 3.10**.
 
-### 场景一：只读查询（直连 BKN，无需构建）
+## Quick Start
 
-已有 BKN，只需搜索或与 Agent 对话时使用此模式。**不需要调用 `weaver()`。**
+### Scenario 1: Read-only queries (connect to an existing BKN)
+
+Use this mode when you only need to search or chat with an agent against an existing BKN. **No need to call `weaver()`.**
 
 ```python
 import kweaver
@@ -24,25 +28,25 @@ kweaver.configure(
     agent_id="supply-chain-agent-id",
 )
 
-# 语义搜索 BKN
-results = kweaver.search("供应链有哪些关键风险？")
+# Semantic search over the BKN
+results = kweaver.search("What are the key risks in the supply chain?")
 for concept in results.concepts:
     print(concept.concept_name, concept.rerank_score)
 
-# 与 Agent 对话
-reply = kweaver.chat("帮我分析一下今年的库存风险")
+# Chat with an agent
+reply = kweaver.chat("Analyse the inventory risks for this year")
 print(reply.content)
 
-# 流式输出
-for chunk in kweaver.chat("给我生成一份风险报告", stream=True):
+# Streaming output
+for chunk in kweaver.chat("Generate a risk report", stream=True):
     print(chunk.delta, end="", flush=True)
 ```
 
 ---
 
-### 场景二：写入数据源后构建索引
+### Scenario 2: Write data then rebuild the index
 
-接入了新数据源、新增了对象类或关系类之后，需要调用 `weaver()` 重建 BKN 索引，才能让变更生效并被 Agent 检索到。
+After connecting new datasources or adding object/relation types, call `weaver()` to rebuild the BKN index so changes become searchable by agents.
 
 ```python
 import kweaver
@@ -54,35 +58,35 @@ kweaver.configure(
     bkn_id="supply-chain-bkn-id",
 )
 
-# 通过底层客户端做写操作（如接入数据源、定义对象类等）
+# Use the low-level client for write operations
 client = kweaver._default_client
 client.datasources.create(name="erp_db", type="mysql", ...)
 client.object_types.create(bkn_id="supply-chain-bkn-id", ...)
 
-# 写操作完成后，触发 BKN 全量构建（建立索引）
-kweaver.weaver(wait=True)   # 同步等待完成，默认超时 300s
-print("BKN 构建完成，可以开始搜索")
+# Trigger a full BKN build after writes (default timeout: 300s)
+kweaver.weaver(wait=True)
+print("BKN build complete — ready to search")
 
-# 构建完成后即可搜索
-results = kweaver.search("新接入的 ERP 数据中有哪些供应商？")
+# Now search the newly indexed data
+results = kweaver.search("Which suppliers are in the newly imported ERP data?")
 ```
 
-异步触发（不阻塞）：
+Async (non-blocking) build:
 
 ```python
-job = kweaver.weaver()          # 立即返回 BuildJob
-status = job.poll()             # 手动轮询
+job = kweaver.weaver()          # Returns a BuildJob immediately
+status = job.poll()             # Poll manually
 print(status.state)             # "running" / "completed" / "failed"
 
-# 或稍后等待
+# Or wait later
 status = job.wait(timeout=600)
 ```
 
 ---
 
-### 场景三：管理多个 BKN
+### Scenario 3: Manage multiple BKNs
 
-需要同时操作多个 BKN 时，在各函数中显式指定 `bkn_id`：
+When operating on multiple BKNs simultaneously, pass `bkn_id` explicitly to each call:
 
 ```python
 import kweaver
@@ -92,35 +96,35 @@ kweaver.configure(
     token="my-token",
 )
 
-# 列出所有 BKN
+# List all BKNs
 for bkn in kweaver.bkns():
     print(bkn.id, bkn.name)
 
-# 分别搜索不同 BKN
-results_sc = kweaver.search("库存预警", bkn_id="supply-chain-bkn-id")
-results_hr = kweaver.search("员工离职率", bkn_id="hr-bkn-id")
+# Search different BKNs
+results_sc = kweaver.search("inventory alert", bkn_id="supply-chain-bkn-id")
+results_hr = kweaver.search("employee turnover", bkn_id="hr-bkn-id")
 
-# 对指定 BKN 触发构建
+# Rebuild specific BKNs
 kweaver.weaver(bkn_id="supply-chain-bkn-id", wait=True)
 kweaver.weaver(bkn_id="hr-bkn-id", wait=True)
 ```
 
 ---
 
-### 场景四：浏览 Agent
+### Scenario 4: Browse agents
 
 ```python
 import kweaver
 
 kweaver.configure(url="https://kweaver.example.com", token="my-token")
 
-# 列出所有已发布的 Agent
+# List all published agents
 for agent in kweaver.agents(status="published"):
     print(f"{agent.name}  (id={agent.id}, bkn={agent.kn_ids})")
 
-# 与指定 Agent 多轮对话
+# Multi-turn conversation with a specific agent
 conv_id = ""
-for question in ["你能做什么？", "分析最近的库存数据", "给出改进建议"]:
+for question in ["What can you do?", "Analyse recent inventory data", "Give improvement suggestions"]:
     reply = kweaver.chat(question, agent_id="supply-chain-agent-id", conversation_id=conv_id)
     conv_id = reply.conversation_id
     print(f"Q: {question}")
@@ -129,60 +133,60 @@ for question in ["你能做什么？", "分析最近的库存数据", "给出改
 
 ---
 
-## API 参考
+## API Reference
 
 ### `kweaver.configure(url, *, token, bkn_id, agent_id, ...)`
 
-初始化默认客户端。所有其他函数都需要先调用此函数。
+Initialises the default client. Must be called before any other function.
 
-| 参数 | 说明 |
-|------|------|
-| `url` | KWeaver 服务地址 |
-| `token` | Bearer Token（推荐） |
-| `username` / `password` | 用户名密码登录（需要 Playwright） |
-| `config` | 使用本地配置文件中的凭证 |
-| `bkn_id` | 默认 BKN ID，供 `search()` 和 `weaver()` 使用 |
-| `agent_id` | 默认 Agent ID，供 `chat()` 使用 |
+| Parameter | Description |
+|---|---|
+| `url` | KWeaver service URL |
+| `token` | Bearer token (recommended) |
+| `username` / `password` | Username/password login (requires Playwright) |
+| `config` | Load credentials from the local config file (`~/.kweaver/`) |
+| `bkn_id` | Default BKN ID used by `search()` and `weaver()` |
+| `agent_id` | Default Agent ID used by `chat()` |
 
 ### `kweaver.search(query, *, bkn_id, mode, max_concepts)`
 
-对 BKN 做语义搜索，返回 `SemanticSearchResult`。
+Semantic search over a BKN. Returns `SemanticSearchResult`.
 
 ### `kweaver.chat(message, *, agent_id, stream, conversation_id)`
 
-向 Agent 发送消息，返回 `Message`（或 `Iterator[MessageChunk]` 当 `stream=True`）。
+Send a message to an agent. Returns `Message` (or `Iterator[MessageChunk]` when `stream=True`).
 
 ### `kweaver.weaver(*, bkn_id, wait, timeout)`
 
-触发 BKN 全量构建/重建索引。**只在写操作后需要调用**，纯只读场景无需调用。返回 `BuildJob`。
+Trigger a full BKN build / index rebuild. **Only needed after write operations** — read-only use cases do not require this. Returns `BuildJob`.
 
 ### `kweaver.agents(*, keyword, status, limit)`
 
-列出 Agent，返回 `list[Agent]`。
+List agents. Returns `list[Agent]`.
 
 ### `kweaver.bkns(*, name, limit)`
 
-列出 BKN，返回 `list[KnowledgeNetwork]`。
+List BKNs. Returns `list[KnowledgeNetwork]`.
 
 ---
 
-## 底层客户端
+## Low-level Client
 
-顶层 API 封装了最常用的操作。如需访问完整功能（数据源、对象类、关系类、Action 等），直接使用底层客户端：
+The top-level API covers the most common operations. For full access (datasources, object types, relation types, actions, etc.), use the low-level client directly:
 
 ```python
 import kweaver
 
 kweaver.configure(url="...", token="...")
-client = kweaver._default_client   # KWeaverClient 实例
+client = kweaver._default_client   # KWeaverClient instance
 
-# 完整 API
+# Full API
 client.datasources.list(bkn_id="...")
 client.object_types.list(bkn_id="...")
 client.action_types.execute(bkn_id="...", action_type_id="...")
 ```
 
-或直接实例化：
+Or instantiate directly:
 
 ```python
 from kweaver import KWeaverClient, TokenAuth
@@ -192,3 +196,12 @@ client = KWeaverClient(
     auth=TokenAuth("my-token"),
 )
 ```
+
+## Links
+
+- [GitHub](https://github.com/kweaver-ai/kweaver-sdk)
+- [TypeScript SDK on npm](https://www.npmjs.com/package/@kweaver-ai/kweaver-sdk)
+
+## License
+
+MIT
