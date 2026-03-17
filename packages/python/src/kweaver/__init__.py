@@ -18,6 +18,7 @@ from kweaver._errors import (
 )
 from kweaver.types import (
     Agent,
+    BuildJob,
     KnowledgeNetwork,
     Message,
     MessageChunk,
@@ -44,6 +45,7 @@ __all__ = [
     "ValidationError",
     # Module-level API
     "configure",
+    "weaver",
     "search",
     "agents",
     "chat",
@@ -223,3 +225,52 @@ def knowledge_networks(
     """
     client = _require_client()
     return client.knowledge_networks.list(name=name, limit=limit)
+
+
+def weaver(
+    *,
+    kn_id: str | None = None,
+    wait: bool = False,
+    timeout: float = 300,
+) -> BuildJob:
+    """Trigger a full build (index rebuild) of a knowledge network.
+
+    After adding or modifying data sources, object types, or relation types,
+    call this to reindex the knowledge network so changes are searchable.
+
+    This corresponds to the BKN full_build_ontology operation, which rebuilds
+    all indexes in OpenSearch and makes the knowledge graph queryable by agents.
+
+    Args:
+        kn_id: Knowledge network ID to build. Falls back to the kn_id set in
+            configure(). Raises ValueError if neither is provided.
+        wait: If True, block until the build completes (or raises TimeoutError).
+            If False (default), returns immediately with a BuildJob you can
+            poll manually via job.poll() or job.wait().
+        timeout: Max seconds to wait when wait=True (default 300).
+
+    Returns:
+        BuildJob — call .poll() to check status or .wait() to block.
+
+    Example::
+
+        # Fire-and-forget
+        job = kweaver.weaver()
+
+        # Block until done
+        status = kweaver.weaver(wait=True)
+        print(status.state)  # "completed"
+
+        # After adding a datasource and defining object types:
+        kweaver.weaver(kn_id="abc123", wait=True)
+    """
+    client = _require_client()
+    resolved_kn_id = kn_id or _default_kn_id
+    if not resolved_kn_id:
+        raise ValueError(
+            "No kn_id provided. Pass kn_id= or set it in kweaver.configure()."
+        )
+    job = client.knowledge_networks.build(resolved_kn_id)
+    if wait:
+        job.wait(timeout=timeout)
+    return job

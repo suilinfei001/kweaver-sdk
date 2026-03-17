@@ -209,3 +209,57 @@ class TestKnowledgeNetworks:
     def test_kns_not_configured_raises(self):
         with pytest.raises(RuntimeError, match="kweaver.configure()"):
             kweaver.knowledge_networks()
+
+
+# ---------------------------------------------------------------------------
+# weaver()
+# ---------------------------------------------------------------------------
+
+class TestWeaver:
+    def setup_method(self):
+        kweaver._default_client = None
+        kweaver._default_kn_id = None
+        kweaver._default_agent_id = None
+
+    def test_weaver_triggers_build(self):
+        build_response = {"state": "running"}
+        _configure({"/full_build_ontology": build_response}, kn_id="kn1")
+        job = kweaver.weaver()
+        assert job.kn_id == "kn1"
+
+    def test_weaver_with_explicit_kn_id(self):
+        build_response = {"state": "running"}
+        _configure({"/full_build_ontology": build_response})
+        job = kweaver.weaver(kn_id="kn_other")
+        assert job.kn_id == "kn_other"
+
+    def test_weaver_no_kn_id_raises(self):
+        kweaver.configure("https://mock", token="tok")
+        with pytest.raises(ValueError, match="No kn_id"):
+            kweaver.weaver()
+
+    def test_weaver_not_configured_raises(self):
+        with pytest.raises(RuntimeError, match="kweaver.configure()"):
+            kweaver.weaver()
+
+    def test_weaver_wait_blocks_until_complete(self):
+        call_count = {"n": 0}
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            path = req.url.path
+            if "/full_build_ontology" in path and req.method == "POST":
+                return httpx.Response(200, json={"state": "running"})
+            if "/full_ontology_building_status" in path:
+                call_count["n"] += 1
+                state = "completed" if call_count["n"] >= 2 else "running"
+                return httpx.Response(200, json={"state": state})
+            return httpx.Response(404, json={})
+
+        kweaver.configure("https://mock", token="tok", kn_id="kn1")
+        kweaver._default_client._http._client = httpx.Client(
+            base_url="https://mock",
+            transport=httpx.MockTransport(handler),
+        )
+        job = kweaver.weaver(wait=True, timeout=10)
+        assert job.kn_id == "kn1"
+        assert call_count["n"] >= 2
