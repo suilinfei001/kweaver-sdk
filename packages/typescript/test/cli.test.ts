@@ -856,6 +856,8 @@ test("run bkn --help shows subcommand help", async () => {
     const help = lines.join("\n");
     assert.ok(help.includes("list [options]"));
     assert.ok(help.includes("export <kn-id>"));
+    assert.ok(help.includes("push <directory>"));
+    assert.ok(help.includes("pull <kn-id>"));
     assert.ok(help.includes("object-type query"));
     assert.ok(help.includes("subgraph"));
     assert.ok(help.includes("action-type"));
@@ -1017,6 +1019,42 @@ test("run bkn build --help shows build options", async () => {
     assert.ok(help.includes("--wait"));
     assert.ok(help.includes("--no-wait"));
     assert.ok(help.includes("--timeout"));
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+test("run bkn push --help shows push options", async () => {
+  const lines: string[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => {
+    lines.push(args.map(String).join(" "));
+  };
+  try {
+    assert.equal(await run(["bkn", "push", "--help"]), 0);
+    const help = lines.join("\n");
+    assert.ok(help.includes("bkn push"));
+    assert.ok(help.includes("<directory>"));
+    assert.ok(help.includes("--branch"));
+    assert.ok(help.includes("biz-domain"));
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+test("run bkn pull --help shows pull options", async () => {
+  const lines: string[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => {
+    lines.push(args.map(String).join(" "));
+  };
+  try {
+    assert.equal(await run(["bkn", "pull", "--help"]), 0);
+    const help = lines.join("\n");
+    assert.ok(help.includes("bkn pull"));
+    assert.ok(help.includes("<kn-id>"));
+    assert.ok(help.includes("<directory>"));
+    assert.ok(help.includes("--branch"));
   } finally {
     console.log = originalLog;
   }

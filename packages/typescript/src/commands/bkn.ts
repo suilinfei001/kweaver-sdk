@@ -1,5 +1,7 @@
 import { createInterface } from "node:readline";
-import { readFileSync } from "node:fs";
+import { execSync, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { ensureValidToken, formatHttpError } from "../auth/oauth.js";
 import {
   listKnowledgeNetworks,
@@ -35,6 +37,7 @@ import {
 import { semanticSearch } from "../api/semantic-search.js";
 import { listTablesWithColumns } from "../api/datasources.js";
 import { createDataView } from "../api/dataviews.js";
+import { downloadBkn, uploadBkn } from "../api/bkn-backend.js";
 import { formatCallOutput } from "./call.js";
 
 export interface KnListOptions {
@@ -467,6 +470,123 @@ export function parseKnDeleteArgs(args: string[]): KnDeleteOptions {
   return { knId, businessDomain, yes };
 }
 
+export interface KnPushOptions {
+  directory: string;
+  branch: string;
+  businessDomain: string;
+  pretty: boolean;
+}
+
+export function parseKnPushArgs(args: string[]): KnPushOptions {
+  let directory = "";
+  let branch = "main";
+  let businessDomain = "bd_public";
+  let pretty = true;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+
+    if (arg === "--help" || arg === "-h") {
+      throw new Error("help");
+    }
+
+    if (arg === "--branch") {
+      branch = args[i + 1] ?? "main";
+      if (!branch || branch.startsWith("-")) {
+        throw new Error("Missing value for --branch");
+      }
+      i += 1;
+      continue;
+    }
+
+    if (arg === "-bd" || arg === "--biz-domain") {
+      businessDomain = args[i + 1] ?? "bd_public";
+      if (!businessDomain || businessDomain.startsWith("-")) {
+        throw new Error("Missing value for biz-domain flag");
+      }
+      i += 1;
+      continue;
+    }
+
+    if (arg === "--pretty") {
+      pretty = true;
+      continue;
+    }
+
+    if (!arg.startsWith("-") && !directory) {
+      directory = arg;
+      continue;
+    }
+
+    throw new Error(`Unsupported bkn push argument: ${arg}`);
+  }
+
+  if (!directory) {
+    throw new Error("Missing directory. Usage: kweaver bkn push <directory> [--branch main] [-bd value]");
+  }
+
+  return { directory, branch, businessDomain, pretty };
+}
+
+export interface KnPullOptions {
+  knId: string;
+  directory: string;
+  branch: string;
+  businessDomain: string;
+}
+
+export function parseKnPullArgs(args: string[]): KnPullOptions {
+  let knId = "";
+  let directory = "";
+  let branch = "main";
+  let businessDomain = "bd_public";
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+
+    if (arg === "--help" || arg === "-h") {
+      throw new Error("help");
+    }
+
+    if (arg === "--branch") {
+      branch = args[i + 1] ?? "main";
+      if (!branch || branch.startsWith("-")) {
+        throw new Error("Missing value for --branch");
+      }
+      i += 1;
+      continue;
+    }
+
+    if (arg === "-bd" || arg === "--biz-domain") {
+      businessDomain = args[i + 1] ?? "bd_public";
+      if (!businessDomain || businessDomain.startsWith("-")) {
+        throw new Error("Missing value for biz-domain flag");
+      }
+      i += 1;
+      continue;
+    }
+
+    if (!arg.startsWith("-")) {
+      if (!knId) {
+        knId = arg;
+      } else if (!directory) {
+        directory = arg;
+      } else {
+        throw new Error(`Unexpected positional argument: ${arg}`);
+      }
+      continue;
+    }
+
+    throw new Error(`Unsupported bkn pull argument: ${arg}`);
+  }
+
+  if (!knId) {
+    throw new Error("Missing kn-id. Usage: kweaver bkn pull <kn-id> [<directory>] [--branch main] [-bd value]");
+  }
+
+  return { knId, directory: directory || knId, branch, businessDomain };
+}
+
 export interface KnObjectTypeQueryOptions {
   knId: string;
   otId: string;
@@ -599,6 +719,8 @@ Subcommands:
   update <kn-id> [options]  Update a knowledge network
   delete <kn-id>       Delete a knowledge network
   build <kn-id> [--wait|--no-wait] [--timeout n]   Trigger full build
+  push <directory> [--branch main]   Upload BKN directory as tar
+  pull <kn-id> [<directory>] [--branch main]   Download BKN tar and extract
   export <kn-id>       Export knowledge network (alias for get --export)
   stats <kn-id>        Get statistics (alias for get --stats)
   search <kn-id> <query> [options]   Semantic search within a knowledge network
@@ -659,6 +781,14 @@ export async function runKnCommand(args: string[]): Promise<number> {
 
   if (subcommand === "build") {
     return runKnBuildCommand(rest);
+  }
+
+  if (subcommand === "push") {
+    return runKnPushCommand(rest);
+  }
+
+  if (subcommand === "pull") {
+    return runKnPullCommand(rest);
   }
 
   if (subcommand === "export") {
@@ -2363,6 +2493,130 @@ async function runKnBuildCommand(args: string[]): Promise<number> {
 
     console.error(`Build did not complete within ${options.timeout}s`);
     return 1;
+  } catch (error) {
+    console.error(formatHttpError(error));
+    return 1;
+  }
+}
+
+// ── push / pull (BKN tar import/export) ──────────────────────────────────────
+
+export function packDirectoryToTar(dirPath: string): Buffer {
+  const absPath = resolve(dirPath);
+  const entries = readdirSync(absPath);
+  const args = ["cf", "-", "-C", absPath, ...entries];
+  const result = spawnSync("tar", args, { encoding: "buffer" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`tar pack failed: ${result.stderr?.toString() ?? result.status}`);
+  }
+  return result.stdout as Buffer;
+}
+
+export function extractTarToDirectory(tarBuffer: Buffer, dirPath: string): void {
+  const absPath = resolve(dirPath);
+  mkdirSync(absPath, { recursive: true });
+  const result = spawnSync("tar", ["xf", "-", "-C", absPath], {
+    input: tarBuffer,
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`tar extract failed: ${result.stderr?.toString() ?? result.status}`);
+  }
+}
+
+const KN_PUSH_HELP = `kweaver bkn push <directory> [options]
+
+Pack a BKN directory into a tar and upload to import as a knowledge network.
+
+Options:
+  --branch <s>       Branch name (default: main)
+  -bd, --biz-domain  Business domain (default: bd_public)
+  --pretty           Pretty-print JSON output`;
+
+const KN_PULL_HELP = `kweaver bkn pull <kn-id> [<directory>] [options]
+
+Download a BKN tar from a knowledge network and extract to a local directory.
+
+Options:
+  <directory>        Output directory (default: <kn-id>)
+  --branch <s>       Branch name (default: main)
+  -bd, --biz-domain  Business domain (default: bd_public)`;
+
+async function runKnPushCommand(args: string[]): Promise<number> {
+  let options: KnPushOptions;
+  try {
+    options = parseKnPushArgs(args);
+  } catch (error) {
+    if (error instanceof Error && error.message === "help") {
+      console.log(KN_PUSH_HELP);
+      return 0;
+    }
+    console.error(formatHttpError(error));
+    return 1;
+  }
+
+  const absDir = resolve(options.directory);
+  try {
+    const stat = statSync(absDir);
+    if (!stat.isDirectory()) {
+      console.error(`Not a directory: ${options.directory}`);
+      return 1;
+    }
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+      console.error(`Directory not found: ${options.directory}`);
+      return 1;
+    }
+    throw err;
+  }
+
+  try {
+    const tarBuffer = packDirectoryToTar(absDir);
+    const token = await ensureValidToken();
+    const body = await uploadBkn({
+      baseUrl: token.baseUrl,
+      accessToken: token.accessToken,
+      tarBuffer,
+      businessDomain: options.businessDomain,
+      branch: options.branch,
+    });
+    console.log(formatCallOutput(body, options.pretty));
+    return 0;
+  } catch (error) {
+    console.error(formatHttpError(error));
+    return 1;
+  }
+}
+
+async function runKnPullCommand(args: string[]): Promise<number> {
+  let options: KnPullOptions;
+  try {
+    options = parseKnPullArgs(args);
+  } catch (error) {
+    if (error instanceof Error && error.message === "help") {
+      console.log(KN_PULL_HELP);
+      return 0;
+    }
+    console.error(formatHttpError(error));
+    return 1;
+  }
+
+  try {
+    const token = await ensureValidToken();
+    const tarBuffer = await downloadBkn({
+      baseUrl: token.baseUrl,
+      accessToken: token.accessToken,
+      knId: options.knId,
+      businessDomain: options.businessDomain,
+      branch: options.branch,
+    });
+    const absDir = resolve(options.directory);
+    extractTarToDirectory(tarBuffer, absDir);
+    console.log(`Extracted to ${absDir}`);
+    return 0;
   } catch (error) {
     console.error(formatHttpError(error));
     return 1;
