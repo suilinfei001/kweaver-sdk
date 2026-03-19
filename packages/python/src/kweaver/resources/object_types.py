@@ -39,25 +39,39 @@ class ObjectTypesResource:
 
         entry: dict[str, Any] = {
             "name": name,
+            "branch": "main",
             "data_source": {"type": "data_view", "id": dataview_id},
             "primary_keys": primary_keys,
             "display_key": display_key,
         }
         if properties is not None:
             entry["data_properties"] = [_property_to_rest(p) for p in properties]
-        # If no explicit properties, auto-generate from primary/display keys
-        # The OT service validates PKs exist in data_properties with a valid type
+        # If no explicit properties, fetch dataview fields and use them all.
+        # The build engine requires pk fields to be mapped in data_properties;
+        # using only pk+dk is insufficient — we need the full field list.
+        if not entry.get("data_properties"):
+            try:
+                from kweaver.resources.dataviews import DataViewsResource
+                dv_resource = DataViewsResource(self._http)
+                dv = dv_resource.get(dataview_id)
+                if dv.fields:
+                    entry["data_properties"] = [
+                        _auto_data_property(f.name, f.type, f.display_name)
+                        for f in dv.fields
+                    ]
+            except Exception:
+                pass  # Fall back to minimal auto-generation below
         if not entry.get("data_properties"):
             auto_props = set(primary_keys)
             auto_props.add(display_key)
             entry["data_properties"] = [
-                {"name": n, "display_name": n, "type": "string"} for n in auto_props
+                _auto_data_property(n, None, None) for n in auto_props
             ]
 
         try:
             data = self._http.post(
                 f"{_PREFIX}/knowledge-networks/{kn_id}/object-types",
-                json={"entries": [entry], "branch": "main"},
+                json={"entries": [entry]},
             )
             items = data if isinstance(data, list) else data.get("entries", data.get("data", [data]))
             return _parse_object_type(items[0], kn_id)
@@ -107,13 +121,59 @@ class ObjectTypesResource:
         )
 
 
+# ADP accepted types: integer, unsigned integer, float, decimal, string, text,
+# date, timestamp, time, datetime, boolean, binary, json, vector, point, shape, ip
+_TYPE_MAP: dict[str, str] = {
+    "varchar": "string",
+    "char": "string",
+    "nvarchar": "string",
+    "longtext": "text",
+    "mediumtext": "text",
+    "tinytext": "text",
+    "bigint": "integer",
+    "int": "integer",
+    "smallint": "integer",
+    "tinyint": "integer",
+    "double": "float",
+    "real": "float",
+    "numeric": "decimal",
+    "number": "decimal",
+    "blob": "binary",
+    "longblob": "binary",
+    "bit": "boolean",
+    "bool": "boolean",
+}
+
+
+def _auto_data_property(name: str, raw_type: str | None, display_name: str | None) -> dict[str, Any]:
+    """Build a data_property dict with mapped_field (required for build)."""
+    normalized = _normalize_field_type(raw_type)
+    return {
+        "name": name,
+        "display_name": display_name or name,
+        "type": normalized,
+        "mapped_field": {
+            "name": name,
+            "type": normalized,
+            "display_name": display_name or name,
+        },
+    }
+
+
+def _normalize_field_type(raw: str | None) -> str:
+    """Map database/dataview field types to ADP-accepted types."""
+    if not raw:
+        return "string"
+    lower = raw.lower().strip()
+    return _TYPE_MAP.get(lower, lower)
+
+
 def _property_to_rest(p: Property) -> dict[str, Any]:
     d: dict[str, Any] = {
         "name": p.name,
         "display_name": p.display_name or p.name,
+        "type": _normalize_field_type(p.type) if p.type else "string",
     }
-    if p.type:
-        d["type"] = p.type
     d["index_config"] = {
         "keyword_config": {"enabled": p.indexed},
         "fulltext_config": {"enabled": p.fulltext},
