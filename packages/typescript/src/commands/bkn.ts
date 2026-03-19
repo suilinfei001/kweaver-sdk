@@ -2505,7 +2505,10 @@ export function packDirectoryToTar(dirPath: string): Buffer {
   const absPath = resolve(dirPath);
   const entries = readdirSync(absPath);
   const args = ["cf", "-", "-C", absPath, ...entries];
-  const result = spawnSync("tar", args, { encoding: "buffer" });
+  const result = spawnSync("tar", args, {
+    encoding: "buffer",
+    env: { ...process.env, COPYFILE_DISABLE: "1" },
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`tar pack failed: ${result.stderr?.toString() ?? result.status}`);
