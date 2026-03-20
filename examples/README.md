@@ -1,36 +1,41 @@
-# KWeaver SDK Examples
+# KWeaver Examples
 
-End-to-end examples running against a real KWeaver instance. Each script is independent and demonstrates a progression of SDK capabilities.
+## [`sdk/`](sdk/) — SDK Usage Examples
 
-## Prerequisites
-
-- Node.js 22+
-- `npm install` (from the repo root)
-- `npx tsx packages/typescript/src/cli.ts auth login <your-platform-url>` — saves credentials to `~/.kweaver/`
-- A KWeaver instance with at least one BKN containing data (for examples 01-05)
-
-## Examples
+End-to-end TypeScript scripts demonstrating the full SDK capabilities, running against a real KWeaver instance.
 
 | # | File | What you'll learn | API Layer |
 |---|------|-------------------|-----------|
-| 01 | [01-quick-start.ts](01-quick-start.ts) | Configure, discover BKNs, semantic search | Simple API |
-| 02 | [02-explore-schema.ts](02-explore-schema.ts) | Object types, relations, actions, statistics | Client API |
-| 03 | [03-query-and-traverse.ts](03-query-and-traverse.ts) | Instance queries, subgraph traversal, Context Loader | Client API |
-| 04 | [04-actions.ts](04-actions.ts) | Action discovery, execution logs, polling | Client API |
-| 05 | [05-agent-conversation.ts](05-agent-conversation.ts) | Agent chat (single + streaming), conversation history | Client API |
-| 06 | [06-full-pipeline.ts](06-full-pipeline.ts) | Full datasource → BKN → build → search pipeline | Mixed |
+| 01 | [01-quick-start.ts](sdk/01-quick-start.ts) | Configure, discover BKNs, semantic search | Simple API |
+| 02 | [02-explore-schema.ts](sdk/02-explore-schema.ts) | Object types, relations, actions, statistics | Client API |
+| 03 | [03-query-and-traverse.ts](sdk/03-query-and-traverse.ts) | Instance queries, subgraph traversal, Context Loader | Client API |
+| 04 | [04-actions.ts](sdk/04-actions.ts) | Action discovery, execution logs, polling | Client API |
+| 05 | [05-agent-conversation.ts](sdk/05-agent-conversation.ts) | Agent chat (single + streaming), conversation history | Client API |
+| 06 | [06-full-pipeline.ts](sdk/06-full-pipeline.ts) | Full datasource → BKN → build → search pipeline | Mixed |
 
-## Running
+### Prerequisites
+
+- Node.js 22+
+- `npm install` (from the repo root)
+- `npx tsx packages/typescript/src/cli.ts auth login <your-platform-url>`
+- A KWeaver instance with at least one BKN containing data (for examples 01-05)
+
+### Running
 
 ```bash
-npx tsx examples/01-quick-start.ts
+npx tsx examples/sdk/01-quick-start.ts
 ```
 
-## Notes
+### Notes
 
-- **Examples 01-05 are read-only** — safe to run anytime against any instance
-- **Example 06 is destructive** — creates and deletes resources (datasource, BKN). Requires `RUN_DESTRUCTIVE=1` and database env vars
-- All examples dynamically discover available BKNs and agents at runtime — no hardcoded IDs
-- Examples use two API styles:
-  - **Simple API** (`import kweaver from "kweaver-sdk/kweaver"`) — minimal, opinionated
-  - **Client API** (`new KWeaverClient()`) — full control over all resources
+- **Examples 01-05 are read-only** — safe to run anytime
+- **Example 06 is destructive** — requires `RUN_DESTRUCTIVE=1` and database env vars
+- All examples dynamically discover available BKNs/agents at runtime
+
+## [`bkn/`](bkn/) — BKN Format Examples
+
+Sample `.bkn` files demonstrating different knowledge network definition layouts. See [`bkn/README.md`](bkn/README.md) for details.
+
+- **k8s-topology/** — Single-file example
+- **k8s-network/** — Multi-file layout
+- **k8s-modular/** — Modular layout with subdirectories

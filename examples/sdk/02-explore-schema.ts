@@ -3,7 +3,7 @@
  *
  * Demonstrates: KWeaverClient, BKN statistics, schema trifecta (OT/RT/AT).
  *
- * Run: npx tsx examples/02-explore-schema.ts
+ * Run: npx tsx examples/sdk/02-explore-schema.ts
  */
 import { createClient, findKnWithData, pp } from "./setup.js";
 

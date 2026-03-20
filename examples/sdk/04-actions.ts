@@ -3,7 +3,7 @@
  *
  * Demonstrates: Action discovery, execution, async polling, execution logs.
  *
- * Run: npx tsx examples/04-actions.ts
+ * Run: npx tsx examples/sdk/04-actions.ts
  */
 import { createClient, findKnWithData, pp } from "./setup.js";
 

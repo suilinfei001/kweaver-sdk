@@ -1,5 +1,5 @@
 // Monorepo import — published users would use: import { KWeaverClient } from "@kweaver-ai/kweaver-sdk";
-import { KWeaverClient } from "../packages/typescript/src/index.js";
+import { KWeaverClient } from "../../packages/typescript/src/index.js";
 
 /**
  * Initialize a KWeaverClient from ~/.kweaver/ credentials.

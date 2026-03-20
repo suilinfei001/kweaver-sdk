@@ -3,10 +3,10 @@
  *
  * Demonstrates: Agent discovery, single-shot chat, streaming, progress chain, conversation history.
  *
- * Run: npx tsx examples/05-agent-conversation.ts
+ * Run: npx tsx examples/sdk/05-agent-conversation.ts
  */
 import { createClient, findAgent, pp } from "./setup.js";
-import type { ProgressItem } from "../packages/typescript/src/index.js";
+import type { ProgressItem } from "../../packages/typescript/src/index.js";
 
 async function main() {
   const client = createClient();

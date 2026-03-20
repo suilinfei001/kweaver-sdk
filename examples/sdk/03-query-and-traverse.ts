@@ -3,7 +3,7 @@
  *
  * Demonstrates: Conditional filtering, property reads, subgraph traversal, MCP Layer 1+2.
  *
- * Run: npx tsx examples/03-query-and-traverse.ts
+ * Run: npx tsx examples/sdk/03-query-and-traverse.ts
  */
 import { createClient, findKnWithData, pp } from "./setup.js";
 

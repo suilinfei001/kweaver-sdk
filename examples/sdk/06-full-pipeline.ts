@@ -11,7 +11,7 @@
  *   - Set environment variables: KWEAVER_TEST_DB_HOST, KWEAVER_TEST_DB_PORT,
  *     KWEAVER_TEST_DB_NAME, KWEAVER_TEST_DB_USER, KWEAVER_TEST_DB_PASS
  *
- * Run: npx tsx examples/06-full-pipeline.ts
+ * Run: npx tsx examples/sdk/06-full-pipeline.ts
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
