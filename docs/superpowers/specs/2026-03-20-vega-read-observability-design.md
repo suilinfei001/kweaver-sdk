@@ -48,6 +48,7 @@ class VegaNamespace:
         self.catalogs = VegaCatalogsResource(http)
         self.resources = VegaResourcesResource(http)
         self.connector_types = VegaConnectorTypesResource(http)
+        # 6 model resources via generic base (see Entropy Reduction section)
         self.metric_models = VegaMetricModelsResource(http)
         self.event_models = VegaEventModelsResource(http)
         self.trace_models = VegaTraceModelsResource(http)
@@ -708,40 +709,70 @@ class VegaDiscoverError(VegaError):
 
 HTTP errors from vega-backend follow the same `rest.HTTPError` pattern with error codes. The SDK maps vega error codes (e.g., `VegaBackend.InvalidRequestHeader.ContentType`) to appropriate Python/TS exceptions.
 
+## Entropy Reduction: Generic Model Resource
+
+Six of the Vega resources (`metric_models`, `event_models`, `trace_models`, `data_views`, `data_dicts`, `objective_models`) share an identical pattern: `list()` + `get()` against the same mdl-data-model service, differing only in path and return type. Instead of 6 separate resource files, we use a **generic `VegaModelResource`** base:
+
+```python
+class VegaModelResource(Generic[T]):
+    """Generic list/get for mdl-data-model resources."""
+
+    def __init__(self, http: HttpClient, path: str, parse_fn: Callable[[Any], T]) -> None:
+        self._http = http
+        self._path = path          # e.g. "/api/mdl-data-model/v1/metric-models"
+        self._parse = parse_fn
+
+    def list(self, *, limit: int = 20, offset: int = 0, **params) -> list[T]: ...
+    def get(self, ids: str) -> T | list[T]: ...
+```
+
+Resources with extra methods (e.g., `metric_models.fields()`, `trace_models.field_info()`, `data_dicts.items()`) subclass it and add only the delta:
+
+```python
+class VegaMetricModelsResource(VegaModelResource[VegaMetricModel]):
+    def __init__(self, http):
+        super().__init__(http, "/api/mdl-data-model/v1/metric-models", _parse_metric_model)
+
+    def fields(self, ids: str) -> list[dict]: ...
+    def order_fields(self, ids: str) -> list[dict]: ...
+```
+
+CLI commands for models similarly use a shared `register_model_commands()` factory, with per-model extras added declaratively.
+
+This reduces:
+- SDK resource files: 12 → 7 (catalogs, resources, connector_types, **models**, query, tasks, inspect)
+- CLI files: 11 → 7 (catalog, resource, connector_type, **model**, query, task, trace+inspect)
+- Unit test files: parameterized over the model registry instead of per-resource
+- TypeScript: same pattern, `VegaModelResource<T>` generic class
+
 ## Project Structure
 
 ### Python
 
-This introduces `resources/vega/` as a **sub-package** — a new pattern in the codebase. This is intentional: Vega has ~12 resource files, and keeping them flat in `resources/` alongside existing KWeaver resources would create namespace confusion. The `vega/` sub-package clearly scopes Vega-specific code.
+This introduces `resources/vega/` as a **sub-package** — a new pattern in the codebase. This is intentional: Vega has many resource files, and keeping them flat in `resources/` alongside existing KWeaver resources would create namespace confusion. The `vega/` sub-package clearly scopes Vega-specific code.
 
 ```
 packages/python/src/kweaver/
 ├── resources/vega/           # NEW sub-package
 │   ├── __init__.py           # exports VegaNamespace
-│   ├── catalogs.py
-│   ├── resources.py
-│   ├── connector_types.py
-│   ├── metric_models.py
-│   ├── event_models.py
-│   ├── trace_models.py
-│   ├── data_views.py
-│   ├── data_dicts.py
-│   ├── objective_models.py
-│   ├── query.py
+│   ├── _base.py              # VegaModelResource generic base class
+│   ├── catalogs.py           # CatalogsResource (custom — has health, discover, test_connection)
+│   ├── resources.py          # ResourcesResource (custom — has data query)
+│   ├── connector_types.py    # ConnectorTypesResource (custom — different service path)
+│   ├── models.py             # All 6 model resources via VegaModelResource subclasses
+│   ├── query.py              # VegaQueryResource (DSL, PromQL, trace, events, execute)
 │   ├── tasks.py              # unified: discover + metric + event tasks
-│   └── inspect.py            # health, stats, inspect logic
+│   └── inspect.py            # health(), stats(), inspect() methods
 ├── cli/vega/                 # NEW sub-package
 │   ├── __init__.py
-│   ├── main.py               # `kweaver vega` group
-│   ├── catalog.py
-│   ├── resource.py
-│   ├── connector_type.py
-│   ├── model.py              # metric/event/trace/objective/data-view
-│   ├── data_dict.py
-│   ├── query.py
-│   ├── task.py
-│   ├── trace.py
-│   ├── inspect.py            # health, stats, inspect commands
+│   ├── main.py               # `kweaver vega` group entry point
+│   ├── catalog.py            # catalog subcommands
+│   ├── resource.py           # resource subcommands
+│   ├── connector_type.py     # connector-type subcommands
+│   ├── model.py              # ALL model subcommands (factory-registered)
+│   ├── query.py              # query subcommands
+│   ├── task.py               # task subcommands
+│   ├── trace.py              # trace diagnostics subcommands
 │   └── formatters.py         # md/json/yaml output formatting
 ├── types.py                  # extended with Vega* types
 └── _client.py                # extended with self.vega: VegaNamespace
@@ -755,15 +786,11 @@ The existing TS SDK uses `resources/` for resource classes and `api/` for lower-
 packages/typescript/src/
 ├── resources/vega/           # NEW sub-directory
 │   ├── index.ts              # exports VegaNamespace
+│   ├── base.ts               # VegaModelResource<T> generic base
 │   ├── catalogs.ts
 │   ├── resources.ts
 │   ├── connector-types.ts
-│   ├── metric-models.ts
-│   ├── event-models.ts
-│   ├── trace-models.ts
-│   ├── data-views.ts
-│   ├── data-dicts.ts
-│   ├── objective-models.ts
+│   ├── models.ts             # all 6 model resources
 │   ├── query.ts
 │   ├── tasks.ts
 │   └── inspect.ts
@@ -771,18 +798,16 @@ packages/typescript/src/
 │   ├── catalogs.ts
 │   ├── resources.ts
 │   ├── query.ts
-│   └── ...
+│   └── models.ts
 ├── commands/vega/            # NEW sub-directory
 │   ├── index.ts
 │   ├── catalog.ts
 │   ├── resource.ts
 │   ├── connector-type.ts
-│   ├── model.ts
-│   ├── data-dict.ts
+│   ├── model.ts              # factory-registered model commands
 │   ├── query.ts
 │   ├── task.ts
-│   ├── trace.ts
-│   └── inspect.ts
+│   └── trace.ts
 ├── types/vega.ts             # Vega type interfaces
 └── client.ts                 # extended with vega: VegaNamespace
 ```
@@ -817,3 +842,487 @@ packages/typescript/src/
 | | Platform stats | `vega.stats()` | `vega stats` |
 | | Aggregated inspect | `vega.inspect()` | `vega inspect` |
 | **Output** | Markdown / JSON / YAML | — | `--format md\|json\|yaml` |
+
+## Testing Plan
+
+Testing follows the existing kweaver-sdk conventions: **unit tests** (mocked HTTP, fast) + **e2e tests** (real Vega instance, the real quality gate). Both Python and TypeScript must have equivalent coverage.
+
+### Test Infrastructure
+
+#### E2E Environment
+
+E2E tests require a running Vega instance. Configuration via environment variables (auto-loaded from `~/.env.secrets`):
+
+```bash
+# Required
+KWEAVER_VEGA_URL=http://vega-backend:13014
+
+# Reuse existing auth (already in ~/.env.secrets)
+KWEAVER_BASE_URL=...
+KWEAVER_TOKEN=...
+```
+
+**Python**: extend `tests/e2e/conftest.py` to read `KWEAVER_VEGA_URL` into the e2e env registry. Add a `vega_client` fixture (session-scoped) that returns `client.vega`, auto-skipping if `KWEAVER_VEGA_URL` is not set.
+
+**TypeScript**: extend `test/e2e/setup.ts` `getE2eEnv()` to include `vegaUrl` from `KWEAVER_VEGA_URL`.
+
+#### Shared Fixtures (Python)
+
+```python
+# tests/e2e/conftest.py — new fixtures
+
+@pytest.fixture(scope="session")
+def vega_client(kweaver_client) -> VegaNamespace:
+    """Vega namespace, skips if KWEAVER_VEGA_URL not configured."""
+    if not hasattr(kweaver_client, "vega") or kweaver_client.vega is None:
+        pytest.skip("KWEAVER_VEGA_URL not configured")
+    return kweaver_client.vega
+
+@pytest.fixture(scope="module")
+def any_catalog(vega_client) -> VegaCatalog:
+    """First available catalog, skips if none."""
+    cats = vega_client.catalogs.list(limit=1)
+    if not cats:
+        pytest.skip("No catalogs available")
+    return cats[0]
+
+@pytest.fixture(scope="module")
+def any_resource(vega_client, any_catalog) -> VegaResource:
+    """First available resource in any catalog."""
+    resources = vega_client.resources.list(catalog_id=any_catalog.id, limit=1)
+    if not resources:
+        pytest.skip("No resources available")
+    return resources[0]
+```
+
+### Unit Tests
+
+Unit tests use mock HTTP transport (existing `make_client` + `RequestCapture` pattern). Every SDK method must have a unit test verifying:
+1. Correct HTTP method and endpoint path
+2. Query parameters / request body serialization
+3. Response parsing into typed Pydantic models
+
+#### Python: `tests/unit/test_vega.py`
+
+A single test file, leveraging parameterization for the 6 generic model resources:
+
+```python
+# ── Generic model resources (parameterized) ──────────────────────────
+
+MODEL_RESOURCES = [
+    ("metric_models",    "/api/mdl-data-model/v1/metric-models",    VegaMetricModel),
+    ("event_models",     "/api/mdl-data-model/v1/event-models",     VegaEventModel),
+    ("trace_models",     "/api/mdl-data-model/v1/trace-models",     VegaTraceModel),
+    ("data_views",       "/api/mdl-data-model/v1/data-views",       VegaDataView),
+    ("data_dicts",       "/api/mdl-data-model/v1/data-dicts",       VegaDataDict),
+    ("objective_models", "/api/mdl-data-model/v1/objective-models",  VegaObjectiveModel),
+]
+
+@pytest.mark.parametrize("attr,path,model_cls", MODEL_RESOURCES)
+def test_model_list(attr, path, model_cls, capture):
+    handler = mock_list_response(path)
+    client = make_vega_client(handler, capture)
+    result = getattr(client.vega, attr).list()
+    assert capture.last_request().url.path == path
+    assert all(isinstance(r, model_cls) for r in result)
+
+@pytest.mark.parametrize("attr,path,model_cls", MODEL_RESOURCES)
+def test_model_get(attr, path, model_cls, capture):
+    handler = mock_get_response(path)
+    client = make_vega_client(handler, capture)
+    result = getattr(client.vega, attr).get("id-1")
+    assert f"{path}/id-1" in capture.last_request().url.path
+
+# ── Custom resources (individual tests) ──────────────────────────────
+
+def test_catalog_list(capture): ...
+def test_catalog_get(capture): ...
+def test_catalog_health_status(capture): ...
+def test_catalog_health_report(capture): ...       # verifies composite: list → health_status
+def test_catalog_test_connection(capture): ...
+def test_catalog_discover(capture): ...
+def test_catalog_resources(capture): ...
+
+def test_resource_list(capture): ...
+def test_resource_get(capture): ...
+def test_resource_data(capture): ...
+
+def test_connector_type_list(capture): ...
+def test_connector_type_get(capture): ...
+
+# model-specific extras
+def test_metric_model_fields(capture): ...
+def test_metric_model_order_fields(capture): ...
+def test_trace_model_field_info(capture): ...
+def test_data_dict_items(capture): ...
+def test_data_view_groups(capture): ...
+def test_event_model_levels(capture): ...
+
+# query
+def test_query_dsl(capture): ...
+def test_query_dsl_count(capture): ...
+def test_query_dsl_scroll(capture): ...
+def test_query_promql(capture): ...                 # verifies form-encoded content-type
+def test_query_promql_instant(capture): ...
+def test_query_promql_series(capture): ...
+def test_query_metric_model(capture): ...
+def test_query_data_view(capture): ...
+def test_query_trace(capture): ...
+def test_query_events(capture): ...
+def test_query_event(capture): ...
+def test_query_execute(capture): ...
+
+# tasks
+def test_task_list_discover(capture): ...
+def test_task_get_discover(capture): ...
+def test_task_wait_discover_polls_until_complete(capture): ...
+def test_task_get_metric(capture): ...
+
+# health / stats / inspect
+def test_health(capture): ...
+def test_stats_composite(capture): ...              # verifies multiple internal calls
+def test_inspect_composite(capture): ...
+def test_inspect_partial_failure(capture): ...      # verifies partial results on sub-call failure
+```
+
+#### Python: `tests/unit/test_vega_cli.py`
+
+CLI tests use `CliRunner` (existing pattern). Focus on:
+1. Command invocation → SDK method called correctly
+2. Output format: `--format md` produces valid Markdown tables, `--format json` produces valid JSON
+
+```python
+# Parameterized for model commands
+@pytest.mark.parametrize("model_name", ["metric-model", "event-model", "trace-model", "data-view", "data-dict", "objective-model"])
+def test_model_list_cli(model_name, cli_runner, mock_vega):
+    result = cli_runner.invoke(["vega", model_name, "list"])
+    assert result.exit_code == 0
+
+# Format tests
+def test_catalog_list_format_json(cli_runner, mock_vega): ...
+def test_catalog_list_format_md(cli_runner, mock_vega): ...
+def test_inspect_output(cli_runner, mock_vega): ...
+```
+
+#### TypeScript: `test/vega.test.ts` and `test/vega-cli.test.ts`
+
+Mirror the Python structure. Uses `withFetch()` mock pattern:
+
+```typescript
+// Parameterized model tests
+for (const [attr, path] of MODEL_RESOURCES) {
+  test(`vega ${attr} list`, async () => {
+    await withFetch(mockListHandler(path), async () => {
+      const client = new KWeaverClient({ vegaUrl: "http://localhost:13014", ... });
+      const result = await client.vega[attr].list();
+      assert.ok(Array.isArray(result));
+    });
+  });
+}
+```
+
+### E2E Tests
+
+E2E tests validate against a real Vega instance. They are the **real quality gate** — unit tests alone are meaningless for verifying endpoint paths, auth headers, and response parsing.
+
+#### Test Organization
+
+```
+tests/e2e/
+├── conftest.py                    # extended: vega_client, any_catalog, any_resource fixtures
+├── layer/
+│   ├── test_vega_metadata.py      # catalog, resource, connector-type read ops
+│   ├── test_vega_models.py        # all 6 model types — parameterized
+│   ├── test_vega_query.py         # DSL, PromQL, execute, data-view, metric-model queries
+│   └── test_vega_observability.py # health, stats, inspect, tasks, trace
+└── integration/
+    └── test_vega_lifecycle.py     # discover → query → verify (destructive)
+```
+
+TypeScript:
+```
+test/e2e/
+├── setup.ts                       # extended: vegaUrl, shouldSkipVega()
+├── vega-metadata.test.ts
+├── vega-models.test.ts
+├── vega-query.test.ts
+├── vega-observability.test.ts
+└── vega-lifecycle.test.ts
+```
+
+#### Layer Tests (read-only, `@pytest.mark.e2e`)
+
+These tests are read-only against existing Vega data. They auto-skip if no data is available.
+
+**`test_vega_metadata.py`**:
+
+```python
+@pytest.mark.e2e
+class TestVegaCatalogs:
+    def test_list(self, vega_client):
+        cats = vega_client.catalogs.list()
+        assert isinstance(cats, list)
+        if cats:
+            assert isinstance(cats[0], VegaCatalog)
+
+    def test_get(self, vega_client, any_catalog):
+        cat = vega_client.catalogs.get(any_catalog.id)
+        assert cat.id == any_catalog.id
+
+    def test_health_status(self, vega_client, any_catalog):
+        statuses = vega_client.catalogs.health_status([any_catalog.id])
+        assert len(statuses) == 1
+        assert statuses[0].health_status in ("healthy", "degraded", "unhealthy", "offline", "disabled")
+
+    def test_health_report(self, vega_client):
+        report = vega_client.catalogs.health_report()
+        assert isinstance(report, VegaHealthReport)
+        assert report.healthy_count + report.degraded_count + report.unhealthy_count + report.offline_count == len(report.catalogs)
+
+    def test_resources(self, vega_client, any_catalog):
+        resources = vega_client.catalogs.resources(any_catalog.id)
+        assert isinstance(resources, list)
+
+    def test_test_connection(self, vega_client, any_catalog):
+        # test_connection is safe (read-only probe)
+        result = vega_client.catalogs.test_connection(any_catalog.id)
+        assert result is not None
+
+@pytest.mark.e2e
+class TestVegaResources:
+    def test_list(self, vega_client):
+        resources = vega_client.resources.list(limit=5)
+        assert isinstance(resources, list)
+
+    def test_get(self, vega_client, any_resource):
+        r = vega_client.resources.get(any_resource.id)
+        assert r.id == any_resource.id
+        assert r.category in ("table", "index", "dataset", "metric", "topic", "file", "fileset", "api", "logicview")
+
+@pytest.mark.e2e
+class TestVegaConnectorTypes:
+    def test_list(self, vega_client):
+        types = vega_client.connector_types.list()
+        assert isinstance(types, list)
+        assert len(types) > 0  # at least built-in types exist
+```
+
+**`test_vega_models.py`** — parameterized over model types:
+
+```python
+MODEL_ATTRS = ["metric_models", "event_models", "trace_models", "data_views", "data_dicts", "objective_models"]
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("attr", MODEL_ATTRS)
+def test_model_list(vega_client, attr):
+    result = getattr(vega_client, attr).list(limit=5)
+    assert isinstance(result, list)
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("attr", MODEL_ATTRS)
+def test_model_get(vega_client, attr):
+    items = getattr(vega_client, attr).list(limit=1)
+    if not items:
+        pytest.skip(f"No {attr} available")
+    item = getattr(vega_client, attr).get(items[0].id)
+    assert item.id == items[0].id
+
+# Model-specific extras
+@pytest.mark.e2e
+def test_metric_model_fields(vega_client):
+    models = vega_client.metric_models.list(limit=1)
+    if not models:
+        pytest.skip("No metric models")
+    fields = vega_client.metric_models.fields(models[0].id)
+    assert isinstance(fields, list)
+
+@pytest.mark.e2e
+def test_data_dict_items(vega_client):
+    dicts = vega_client.data_dicts.list(limit=1)
+    if not dicts:
+        pytest.skip("No data dicts")
+    items = vega_client.data_dicts.items(dicts[0].id)
+    assert isinstance(items, list)
+```
+
+**`test_vega_query.py`**:
+
+```python
+@pytest.mark.e2e
+class TestVegaQuery:
+    def test_execute(self, vega_client, any_resource):
+        """Unified query against a known resource."""
+        result = vega_client.query.execute(
+            tables=[{"resource_id": any_resource.id}],
+            output_fields=["*"],
+            limit=5,
+        )
+        assert isinstance(result, VegaQueryResult)
+
+    def test_dsl_search(self, vega_client):
+        """DSL search — requires at least one index resource."""
+        result = vega_client.query.dsl(body={"query": {"match_all": {}}, "size": 1})
+        assert isinstance(result, VegaDslResult)
+
+    def test_promql_instant(self, vega_client):
+        """PromQL instant query — may skip if no Prometheus data source."""
+        try:
+            result = vega_client.query.promql_instant(query="up")
+            assert isinstance(result, VegaPromqlResult)
+        except VegaQueryError:
+            pytest.skip("No PromQL-compatible data source")
+```
+
+**`test_vega_observability.py`**:
+
+```python
+@pytest.mark.e2e
+class TestVegaHealth:
+    def test_health(self, vega_client):
+        info = vega_client.health()
+        assert isinstance(info, VegaServerInfo)
+        assert info.server_name
+        assert info.server_version
+
+    def test_stats(self, vega_client):
+        stats = vega_client.stats()
+        assert isinstance(stats, VegaPlatformStats)
+        assert stats.catalogs_total >= 0
+
+    def test_inspect(self, vega_client):
+        report = vega_client.inspect()
+        assert isinstance(report, VegaInspectReport)
+        assert report.server_info.server_name
+
+@pytest.mark.e2e
+class TestVegaTasks:
+    def test_list_discover(self, vega_client):
+        tasks = vega_client.tasks.list_discover()
+        assert isinstance(tasks, list)
+```
+
+#### Integration Test (destructive, `@pytest.mark.e2e @pytest.mark.destructive`)
+
+Full lifecycle test that creates real data and verifies the read path end-to-end.
+
+**`test_vega_lifecycle.py`**:
+
+```python
+@pytest.fixture(scope="module")
+def vega_lifecycle(vega_client):
+    """
+    Lifecycle:
+    1. Find a catalog with healthy status
+    2. Trigger discover
+    3. Wait for discover to complete
+    4. Verify resources were discovered
+    5. Query resource data
+    """
+    cats = vega_client.catalogs.list(limit=10)
+    healthy = [c for c in cats if c.health_status == "healthy"]
+    if not healthy:
+        pytest.skip("No healthy catalog for lifecycle test")
+
+    catalog = healthy[0]
+
+    # Trigger discover (destructive — creates a discover task)
+    task = vega_client.catalogs.discover(catalog.id)
+
+    # Wait for completion
+    final = vega_client.tasks.wait_discover(task.id, timeout=120)
+
+    # List discovered resources
+    resources = vega_client.catalogs.resources(catalog.id, limit=50)
+
+    yield {
+        "catalog": catalog,
+        "task": final,
+        "resources": resources,
+    }
+
+@pytest.mark.e2e
+@pytest.mark.destructive
+class TestVegaLifecycle:
+    def test_discover_completed(self, vega_lifecycle):
+        assert vega_lifecycle["task"].status == "completed"
+
+    def test_resources_discovered(self, vega_lifecycle):
+        assert len(vega_lifecycle["resources"]) > 0
+
+    def test_resource_data_query(self, vega_client, vega_lifecycle):
+        resources = vega_lifecycle["resources"]
+        # Find a table resource to query
+        tables = [r for r in resources if r.category == "table"]
+        if not tables:
+            pytest.skip("No table resources discovered")
+        result = vega_client.resources.data(tables[0].id, body={})
+        assert result is not None
+```
+
+#### CLI E2E Tests
+
+CLI e2e tests verify the full stack: CLI → SDK → HTTP → real Vega:
+
+```python
+@pytest.mark.e2e
+class TestVegaCLI:
+    def test_health(self, cli_runner):
+        result = cli_runner.invoke(["vega", "health"])
+        assert result.exit_code == 0
+        assert "VEGA" in result.output
+
+    def test_catalog_list(self, cli_runner):
+        result = cli_runner.invoke(["vega", "catalog", "list"])
+        assert result.exit_code == 0
+
+    def test_catalog_list_json(self, cli_runner):
+        result = cli_runner.invoke(["vega", "catalog", "list", "--format", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert isinstance(data, list)
+
+    def test_inspect(self, cli_runner):
+        result = cli_runner.invoke(["vega", "inspect"])
+        assert result.exit_code == 0
+        assert "Catalog Health" in result.output
+
+    def test_stats(self, cli_runner):
+        result = cli_runner.invoke(["vega", "stats"])
+        assert result.exit_code == 0
+```
+
+### Test Execution
+
+```bash
+# Unit tests (no Vega instance needed)
+make test                                    # runs all unit tests (Python + TS)
+
+# E2E — read-only layer (needs running Vega)
+KWEAVER_VEGA_URL=http://vega:13014 make test-e2e
+
+# E2E — full lifecycle (needs running Vega + writable catalog)
+KWEAVER_VEGA_URL=http://vega:13014 pytest tests/e2e/ --run-destructive
+
+# TypeScript E2E
+KWEAVER_VEGA_URL=http://vega:13014 npm run test:e2e
+```
+
+### Coverage Targets
+
+| Layer | Target | Notes |
+|-------|--------|-------|
+| Python unit | 90%+ on vega resources | Parameterized tests cover all model types automatically |
+| Python e2e layer | All list/get/health operations | Read-only, safe to run repeatedly |
+| Python e2e integration | Discover → query lifecycle | Requires `--run-destructive` |
+| TypeScript unit | Parity with Python | Same parameterized patterns |
+| TypeScript e2e | Parity with Python | Same scenarios |
+| CLI unit | All commands, both md and json format | CliRunner / runCli |
+| CLI e2e | health, catalog list, inspect, stats | Smoke tests against real instance |
+
+### Key Testing Principles
+
+1. **E2e is the real quality gate** — unit tests verify wiring, e2e verifies reality. A green unit test with wrong endpoint path is worse than no test.
+2. **Parameterize, don't duplicate** — the 6 model resources share one parameterized test set, not 6 copy-pasted test files.
+3. **Graceful skip over hard fail** — if a Vega instance has no metric models, skip `test_metric_model_fields`, don't fail.
+4. **External endpoints only** — SDK must use `/api/vega-backend/v1/` paths, never `/api/vega-backend/in/v1/` internal paths.
+5. **Cleanup after destructive tests** — lifecycle fixtures yield + teardown, timestamped names for isolation.
