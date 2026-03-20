@@ -91,3 +91,24 @@ def test_http_client_no_middleware():
 
     client = _make_http_client(handler)
     assert client.get("/api/test") == {"ok": True}
+
+
+from kweaver import KWeaverClient
+from kweaver._errors import DryRunIntercepted
+
+
+def test_client_dry_run_param():
+    """KWeaverClient(dry_run=True) should intercept POST via _http."""
+    def handler(req):
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(handler)
+    client = KWeaverClient(base_url="https://mock", token="tok", transport=transport, dry_run=True)
+
+    # GET passes through middleware to actual handler
+    result = client._http.get("/api/test")
+    assert result == {"ok": True}
+
+    # POST raises DryRunIntercepted before reaching handler
+    with pytest.raises(DryRunIntercepted):
+        client._http.post("/api/test", json={"name": "test"})

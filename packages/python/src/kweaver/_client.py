@@ -8,6 +8,9 @@ import httpx
 
 from kweaver._auth import AuthProvider, ConfigAuth, TokenAuth
 from kweaver._http import HttpClient
+from kweaver._middleware import Middleware
+from kweaver._middleware.debug import DebugMiddleware
+from kweaver._middleware.dry_run import DryRunMiddleware
 from kweaver.resources.agents import AgentsResource
 from kweaver.resources.conversations import ConversationsResource
 from kweaver.resources.datasources import DataSourcesResource
@@ -38,6 +41,8 @@ class KWeaverClient:
         timeout: float = 30.0,
         transport: httpx.BaseTransport | None = None,
         log_requests: bool = False,
+        debug: bool = False,
+        dry_run: bool = False,
     ) -> None:
         if auth is None:
             if token is None:
@@ -53,6 +58,12 @@ class KWeaverClient:
                     "base_url is required (unless using ConfigAuth)"
                 )
 
+        middlewares: list[Middleware] = []
+        if debug:
+            middlewares.append(DebugMiddleware())
+        if dry_run:
+            middlewares.append(DryRunMiddleware())
+
         self._http = HttpClient(
             base_url=base_url,
             auth=auth,
@@ -61,7 +72,8 @@ class KWeaverClient:
             business_domain=business_domain,
             timeout=timeout,
             transport=transport,
-            log_requests=log_requests,
+            log_requests=log_requests or debug,
+            middlewares=middlewares,
         )
 
         self.datasources = DataSourcesResource(self._http)
