@@ -518,3 +518,91 @@ def test_client_vega_raises_without_url():
     import pytest
     with pytest.raises(ValueError, match="vega_url"):
         _ = client.vega
+
+
+# ── Missing Vega resource method tests ──
+
+def test_catalog_health_status():
+    def handler(req):
+        return httpx.Response(200, json={"entries": [
+            {"id": "c-1", "name": "prod", "type": "physical", "connector_type": "mysql",
+             "status": "active", "health_status": "healthy"}
+        ]})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    cats = ns.catalogs.health_status(["c-1"])
+    assert len(cats) == 1
+    assert cats[0].health_status == "healthy"
+
+def test_catalog_test_connection():
+    def handler(req):
+        return httpx.Response(200, json={"status": "ok"})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    result = ns.catalogs.test_connection("c-1")
+    assert result is not None
+
+def test_catalog_discover():
+    def handler(req):
+        return httpx.Response(200, json={"id": "dt-1", "catalog_id": "c-1", "status": "pending"})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    task = ns.catalogs.discover("c-1")
+    assert task.status == "pending"
+
+def test_catalog_resources():
+    def handler(req):
+        return httpx.Response(200, json={"entries": [
+            {"id": "r-1", "name": "users", "catalog_id": "c-1", "category": "table", "status": "active"}
+        ]})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    resources = ns.catalogs.resources("c-1")
+    assert len(resources) == 1
+
+def test_resource_data():
+    def handler(req):
+        return httpx.Response(200, json={"entries": [{"a": 1}], "total_count": 1})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    result = ns.resources.data("r-1", body={"query": {}})
+    assert result.total_count == 1
+
+def test_resource_preview():
+    def handler(req):
+        return httpx.Response(200, json={"entries": [{"a": 1}], "total_count": 1})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    result = ns.resources.preview("r-1")
+    assert isinstance(result.entries, list)
+
+def test_task_get_discover():
+    def handler(req):
+        return httpx.Response(200, json={"id": "dt-1", "catalog_id": "c-1", "status": "completed"})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    task = ns.tasks.get_discover("dt-1")
+    assert task.id == "dt-1"
+
+def test_task_get_metric():
+    def handler(req):
+        return httpx.Response(200, json={"id": "mt-1", "status": "completed"})
+    from kweaver.resources.vega import VegaNamespace
+    ns = VegaNamespace(_make_vega_http(handler))
+    task = ns.tasks.get_metric("mt-1")
+    assert task.id == "mt-1"
+
+def test_stats():
+    def handler(req):
+        url = str(req.url)
+        if "/catalogs" in url:
+            return httpx.Response(200, json={"entries": [
+                {"id": "c-1", "name": "prod", "type": "physical", "connector_type": "mysql", "status": "active"}
+            ]})
+        return httpx.Response(200, json={"entries": []})
+    from kweaver.resources.vega import VegaNamespace
+    from kweaver.types import VegaPlatformStats
+    ns = VegaNamespace(_make_vega_http(handler))
+    stats = ns.stats()
+    assert isinstance(stats, VegaPlatformStats)
+    assert stats.catalog_count >= 0

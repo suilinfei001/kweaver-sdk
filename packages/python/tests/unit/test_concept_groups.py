@@ -45,7 +45,8 @@ def test_delete_concept_group(capture: RequestCapture):
         return httpx.Response(204)
     client = make_client(handler, capture)
     client.concept_groups.delete("kn-1", ["cg-1", "cg-2"])
-    assert "cg-1,cg-2" in capture.last_url() or "cg-1" in capture.last_url()
+    assert "cg-1,cg-2" in capture.last_url()
+    assert capture.requests[-1].method == "DELETE"
 
 
 def test_add_members(capture: RequestCapture):
@@ -54,4 +55,24 @@ def test_add_members(capture: RequestCapture):
     client = make_client(handler, capture)
     client.concept_groups.add_members("kn-1", "cg-1", object_type_ids=["ot-1", "ot-2"])
     body = capture.last_body()
-    assert "ot-1" in str(body)
+    assert body["object_type_ids"] == ["ot-1", "ot-2"]
+    assert capture.requests[-1].method == "POST"
+
+
+def test_update_concept_group(capture: RequestCapture):
+    def handler(req):
+        return httpx.Response(200, json={
+            "id": "cg-1", "name": "updated", "kn_id": "kn-1",
+        })
+    client = make_client(handler, capture)
+    cg = client.concept_groups.update("kn-1", "cg-1", name="updated")
+    assert cg.name == "updated"
+    assert capture.requests[-1].method == "PUT"
+
+def test_remove_members(capture: RequestCapture):
+    def handler(req):
+        return httpx.Response(204)
+    client = make_client(handler, capture)
+    client.concept_groups.remove_members("kn-1", "cg-1", object_type_ids=["ot-1", "ot-2"])
+    assert capture.requests[-1].method == "DELETE"
+    assert "ot-1,ot-2" in capture.last_url()
