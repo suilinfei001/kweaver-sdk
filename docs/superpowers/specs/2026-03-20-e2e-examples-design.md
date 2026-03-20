@@ -110,19 +110,16 @@ This section shows the same query capabilities through the MCP protocol interfac
 
 **~100-120 lines. Mixed API layers. Destructive (creates/deletes resources).**
 
-Note: Datasource and DataView operations use low-level API functions (not resource methods on `KWeaverClient`), imported directly from the API layer. Object type creation also uses the low-level API — `KWeaverClient` does not yet expose resource wrappers for these.
+Note: Uses the CLI `bkn create-from-ds` command which encapsulates the full pipeline (list tables → create DataViews → create KN → create object types). This is preferred over calling low-level API functions individually because object type creation requires internal knowledge of complex payload structures. Build and search use the Client API directly.
 
-1. `testDatasource(opts)` — verify database connection (from `api/datasources`)
-2. `createDatasource(opts)` — register MySQL datasource (from `api/datasources`)
-3. `listTablesWithColumns(opts)` — inspect table structure (from `api/datasources`)
-4. `createDataView(opts)` — create DataView mapping (from `api/dataviews`)
-5. `knowledgeNetworks.create({ name, description })` — create new BKN (Client API)
-6. Create object type linked to DataView (via low-level API, e.g. `createObjectTypes` from `api/knowledge-networks`)
-7. `knowledgeNetworks.buildAndWait(bknId)` — build index and wait (Client API)
-8. `bkn.semanticSearch(bknId, "business question")` — search the new graph (Client API)
-9. Cleanup: delete all created resources
+1. CLI: `ds connect` — register MySQL datasource
+2. CLI: `bkn create-from-ds <ds-id>` — create BKN from datasource (handles DataView + OT creation)
+3. `knowledgeNetworks.buildAndWait(bknId)` — build index and wait (Client API)
+4. CLI: `bkn export <kn-id>` — inspect what was created
+5. `bkn.semanticSearch(bknId, "business question")` — search the new graph (Client API)
+6. Cleanup: CLI `bkn delete` + `ds delete`
 
-**Capabilities shown**: Low-level API functions, datasource management, DataView, BKN lifecycle, build + wait, search validation, resource cleanup.
+**Capabilities shown**: CLI + Client API integration, datasource management, BKN lifecycle, build + wait, search validation, resource cleanup.
 
 ## README.md Structure
 
