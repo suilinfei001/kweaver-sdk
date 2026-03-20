@@ -67,3 +67,36 @@ def handle_errors(fn):
         except KWeaverError as e:
             error_exit(f"错误: {e.message}")
     return wrapper
+
+
+def output(data: Any, *, format: str = "md") -> None:
+    """Output data in the requested format."""
+    if format == "json":
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False, default=str))
+    elif format == "yaml":
+        try:
+            import yaml
+        except ImportError:
+            raise click.UsageError("YAML output requires: pip install kweaver[yaml]")
+        click.echo(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    else:  # md
+        click.echo(_to_markdown(data))
+
+
+def _to_markdown(data: Any) -> str:
+    """Convert data to markdown table or key-value display."""
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        keys = list(data[0].keys())
+        lines = []
+        lines.append("| " + " | ".join(keys) + " |")
+        lines.append("| " + " | ".join("---" for _ in keys) + " |")
+        for row in data:
+            lines.append("| " + " | ".join(str(row.get(k, "")) for k in keys) + " |")
+        return "\n".join(lines)
+    elif isinstance(data, dict):
+        lines = []
+        for k, v in data.items():
+            lines.append(f"**{k}:** {v}")
+        return "\n".join(lines)
+    else:
+        return json.dumps(data, indent=2, ensure_ascii=False, default=str)
