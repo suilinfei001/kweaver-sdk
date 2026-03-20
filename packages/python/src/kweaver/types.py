@@ -85,6 +85,7 @@ class ObjectType(BaseModel):
     display_key: str
     incremental_key: str | None = None
     properties: list[DataProperty] = []
+    data_properties: list[DataPropertyDetail] = []
     status: ObjectTypeStatus | None = None
 
 
