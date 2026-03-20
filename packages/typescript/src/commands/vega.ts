@@ -144,7 +144,7 @@ async function runVegaStatsCommand(args: string[]): Promise<number> {
   });
 
   const parsed = JSON.parse(body) as Record<string, unknown>;
-  const entries = Array.isArray(parsed) ? parsed : (parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
+  const entries = Array.isArray(parsed) ? parsed : (parsed.entries ?? parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
   const count = Array.isArray(entries) ? entries.length : 0;
 
   const stats = { catalog_count: count };
@@ -181,7 +181,7 @@ async function runVegaInspectCommand(args: string[]): Promise<number> {
   try {
     const catalogsBody = await listVegaCatalogs({ ...base, limit: 100 });
     const parsed = JSON.parse(catalogsBody) as Record<string, unknown>;
-    const entries = Array.isArray(parsed) ? parsed : (parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
+    const entries = Array.isArray(parsed) ? parsed : (parsed.entries ?? parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
     result.catalog_count = Array.isArray(entries) ? entries.length : 0;
   } catch (err) {
     console.error(`warn: catalog list failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -192,7 +192,7 @@ async function runVegaInspectCommand(args: string[]): Promise<number> {
   try {
     const tasksBody = await listVegaDiscoverTasks({ ...base, status: "running" });
     const parsed = JSON.parse(tasksBody) as Record<string, unknown>;
-    const entries = Array.isArray(parsed) ? parsed : (parsed.data ?? parsed.items ?? parsed.tasks ?? []);
+    const entries = Array.isArray(parsed) ? parsed : (parsed.entries ?? parsed.data ?? parsed.items ?? parsed.tasks ?? []);
     result.running_discover_tasks = Array.isArray(entries) ? entries.length : 0;
   } catch (err) {
     console.error(`warn: discover tasks query failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -337,7 +337,7 @@ Options:
   if (useAll) {
     const catalogsBody = await listVegaCatalogs({ ...base, limit: 100 });
     const parsed = JSON.parse(catalogsBody) as Record<string, unknown>;
-    const entries = Array.isArray(parsed) ? parsed : (parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
+    const entries = Array.isArray(parsed) ? parsed : (parsed.entries ?? parsed.data ?? parsed.items ?? parsed.catalogs ?? []);
     if (!Array.isArray(entries) || entries.length === 0) {
       console.error("No catalogs found.");
       return 1;

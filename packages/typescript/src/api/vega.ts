@@ -413,7 +413,7 @@ export async function listVegaConnectorTypes(options: ListVegaConnectorTypesOpti
   } = options;
 
   const base = baseUrl.replace(/\/+$/, "");
-  const url = `${base}${VEGA_BASE}/connector-types`;
+  const url = `${base}${VEGA_BASE}/connector-types?sort=name&order=asc`;
 
   const response = await fetch(url, {
     method: "GET",
