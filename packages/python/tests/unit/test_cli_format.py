@@ -49,3 +49,41 @@ def test_output_default_is_md(capsys):
     output(data)
     captured = capsys.readouterr().out
     assert "|" in captured  # markdown table
+
+
+from click.testing import CliRunner
+from kweaver.cli.main import cli
+
+
+def test_cli_debug_flag_registered():
+    """--debug should be a valid global flag."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--debug", "--help"])
+    assert result.exit_code == 0
+
+
+def test_cli_dry_run_flag_registered():
+    """--dry-run should be a valid global flag."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--dry-run", "--help"])
+    assert result.exit_code == 0
+
+
+def test_cli_format_flag_registered():
+    """--format should be a valid global flag."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--format", "json", "--help"])
+    assert result.exit_code == 0
+
+
+def test_cli_handle_errors_catches_dry_run():
+    """handle_errors should catch DryRunIntercepted and exit normally."""
+    from kweaver.cli._helpers import handle_errors
+    from kweaver._errors import DryRunIntercepted
+
+    @handle_errors
+    def fake_cmd():
+        raise DryRunIntercepted(method="POST", url="/api/test")
+
+    # Should not raise (DryRunIntercepted is caught gracefully)
+    fake_cmd()

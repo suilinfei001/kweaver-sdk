@@ -17,8 +17,20 @@ from kweaver.cli.token import token_cmd
 
 @click.group()
 @click.version_option(package_name="kweaver-sdk")
-def cli() -> None:
+@click.option("--debug", is_flag=True, default=False, envvar="KWEAVER_DEBUG",
+              help="Print full request/response diagnostics.")
+@click.option("--dry-run", is_flag=True, default=False,
+              help="Show write operations without executing them.")
+@click.option("--format", "output_format", type=click.Choice(["md", "json", "yaml"]),
+              default="md", envvar="KWEAVER_FORMAT",
+              help="Output format (default: md).")
+@click.pass_context
+def cli(ctx: click.Context, debug: bool, dry_run: bool, output_format: str) -> None:
     """KWeaver CLI — manage KWeaver knowledge networks, agents, and more."""
+    ctx.ensure_object(dict)
+    ctx.obj["debug"] = debug
+    ctx.obj["dry_run"] = dry_run
+    ctx.obj["output_format"] = output_format
 
 
 cli.add_command(auth_group, "auth")

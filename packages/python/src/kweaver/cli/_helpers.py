@@ -12,10 +12,10 @@ import click
 
 from kweaver._auth import ConfigAuth, PasswordAuth, TokenAuth
 from kweaver._client import KWeaverClient
-from kweaver._errors import KWeaverError, AuthenticationError, AuthorizationError, NotFoundError
+from kweaver._errors import KWeaverError, AuthenticationError, AuthorizationError, NotFoundError, DryRunIntercepted
 
 
-def make_client() -> KWeaverClient:
+def make_client(*, debug: bool = False, dry_run: bool = False) -> KWeaverClient:
     """Build an KWeaverClient from env vars or ~/.kweaver/ config.
 
     Priority:
@@ -31,15 +31,15 @@ def make_client() -> KWeaverClient:
     password = os.environ.get("KWEAVER_PASSWORD")
     if username and password and base_url:
         auth = PasswordAuth(base_url=base_url, username=username, password=password)
-        return KWeaverClient(base_url=base_url, auth=auth, business_domain=bd)
+        return KWeaverClient(base_url=base_url, auth=auth, business_domain=bd, debug=debug, dry_run=dry_run)
 
     token = os.environ.get("KWEAVER_TOKEN")
     if token and base_url:
-        return KWeaverClient(base_url=base_url, auth=TokenAuth(token), business_domain=bd)
+        return KWeaverClient(base_url=base_url, auth=TokenAuth(token), business_domain=bd, debug=debug, dry_run=dry_run)
 
     # Default: ConfigAuth reads ~/.kweaver/
     auth = ConfigAuth()
-    return KWeaverClient(auth=auth, business_domain=bd)
+    return KWeaverClient(auth=auth, business_domain=bd, debug=debug, dry_run=dry_run)
 
 
 def pp(data: Any) -> None:
@@ -58,6 +58,8 @@ def handle_errors(fn):
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
+        except DryRunIntercepted as e:
+            click.echo(str(e), err=True)
         except AuthenticationError as e:
             error_exit(f"认证失败: {e.message}")
         except AuthorizationError as e:
