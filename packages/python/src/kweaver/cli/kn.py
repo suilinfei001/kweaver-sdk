@@ -256,6 +256,32 @@ def _pack_bkn_directory_to_tar_bytes(abs_dir: Path) -> bytes:
     return proc.stdout
 
 
+@kn_group.command("validate")
+@click.argument("directory")
+@handle_errors
+def validate_bkn(directory: str) -> None:
+    """Validate a local BKN directory without uploading."""
+    from bkn import load_network, validate_network_data
+
+    dir_path = Path(directory).resolve()
+    if not dir_path.is_dir():
+        error_exit(f"Not a directory: {directory}")
+
+    network = load_network(str(dir_path))
+    result = validate_network_data(network)
+    if not result.ok:
+        for e in result.errors:
+            click.echo(f"  - {e}", err=True)
+        error_exit(f"BKN validation failed: {len(result.errors)} error(s)")
+
+    n_obj = len(network.all_objects)
+    n_rel = len(network.all_relations)
+    n_act = len(network.all_actions)
+    click.echo(
+        f"Valid: {n_obj} object types, {n_rel} relation types, {n_act} action types"
+    )
+
+
 @kn_group.command("push")
 @click.argument("directory")
 @click.option("--branch", default="main", help="Branch name (default: main).")

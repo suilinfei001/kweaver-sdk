@@ -6,7 +6,7 @@
 ## 网络概览
 
 本知识网络建模足球联赛的核心实体与关系，涵盖联赛、球队、球员、比赛、进球五大对象，
-支持赛事管理、球员转会、战术分析、纪律处罚等场景。
+支持赛事管理、球员转会、战术分析、纪律处罚、荣誉奖项等场景。
 
 ### 核心对象
 
@@ -34,6 +34,7 @@
 |------|----------|----------|------|
 | transfer_player | `action_types/transfer_player.bkn` | 球员 | 球员转会 |
 | suspend_player | `action_types/suspend_player.bkn` | 球员 | 球员停赛处罚 |
+| award_player | `action_types/award_player.bkn` | 球员 | 球员授予奖项 |
 
 ## 拓扑关系
 
@@ -60,6 +61,7 @@
 
 1. **球员转会** — 读取 `action_types/transfer_player.bkn`，执行转会行动
 2. **纪律处罚** — 读取 `action_types/suspend_player.bkn`，执行停赛处罚
+3. **荣誉奖项** — 读取 `action_types/award_player.bkn`，为球员登记奖项
 
 ## 索引
 

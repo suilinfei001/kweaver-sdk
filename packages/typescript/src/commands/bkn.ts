@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import { execSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadNetwork, allObjects, allRelations, allActions, generateChecksum } from "@kweaver-ai/bkn";
+import { loadNetwork, allObjects, allRelations, allActions, generateChecksum, validateNetwork } from "@kweaver-ai/bkn";
 import { ensureValidToken, formatHttpError } from "../auth/oauth.js";
 import { HttpError } from "../utils/http.js";
 import {
@@ -730,6 +730,7 @@ Subcommands:
   update <kn-id> [options]  Update a knowledge network
   delete <kn-id>       Delete a knowledge network
   build <kn-id> [--wait|--no-wait] [--timeout n]   Trigger full build
+  validate <directory>   Validate a local BKN directory (no upload)
   push <directory> [--branch main]   Upload BKN directory as tar
   pull <kn-id> [<directory>] [--branch main]   Download BKN tar and extract
   export <kn-id>       Export knowledge network (alias for get --export)
@@ -774,6 +775,7 @@ export async function runKnCommand(args: string[]): Promise<number> {
     if (subcommand === "update") return runKnUpdateCommand(rest);
     if (subcommand === "delete") return runKnDeleteCommand(rest);
     if (subcommand === "build") return runKnBuildCommand(rest);
+    if (subcommand === "validate") return runKnValidateCommand(rest);
     if (subcommand === "push") return runKnPushCommand(rest);
     if (subcommand === "pull") return runKnPullCommand(rest);
     if (subcommand === "export")
@@ -2557,6 +2559,53 @@ Options:
   <directory>        Output directory (default: <kn-id>)
   --branch <s>       Branch name (default: main)
   -bd, --biz-domain  Business domain (default: bd_public)`;
+
+async function runKnValidateCommand(args: string[]): Promise<number> {
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log("Usage: kweaver bkn validate <directory>\n\nValidate a local BKN directory without uploading.");
+    return 0;
+  }
+  const directory = args.find((a) => !a.startsWith("-"));
+  if (!directory) {
+    console.error("Missing directory. Usage: kweaver bkn validate <directory>");
+    return 1;
+  }
+
+  const absDir = resolve(directory);
+  try {
+    const stat = statSync(absDir);
+    if (!stat.isDirectory()) {
+      console.error(`Not a directory: ${directory}`);
+      return 1;
+    }
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+      console.error(`Directory not found: ${directory}`);
+      return 1;
+    }
+    throw err;
+  }
+
+  try {
+    const network = await loadNetwork(absDir);
+    const result = validateNetwork(network);
+    if (!result.ok) {
+      for (const e of result.errors) console.error(`  - ${e}`);
+      console.error(`BKN validation failed: ${result.errors.length} error(s)`);
+      return 1;
+    }
+    const objs = allObjects(network);
+    const rels = allRelations(network);
+    const acts = allActions(network);
+    console.log(
+      `Valid: ${objs.length} object types, ${rels.length} relation types, ${acts.length} action types`
+    );
+    return 0;
+  } catch (error) {
+    console.error(`BKN validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
+}
 
 async function runKnPushCommand(args: string[]): Promise<number> {
   let options: KnPushOptions;

@@ -21,7 +21,8 @@ kweaver bkn create-from-ds <ds_id> --name <name> [--tables <t1,t2>] [--build/--n
 kweaver bkn update <kn_id> [--name <n>] [--description <d>] [--tag <t> ...]
 kweaver bkn build <kn_id> [--wait/--no-wait] [--timeout 300]
 kweaver bkn delete <kn_id> [--yes]
-kweaver bkn push <directory> [--branch main]         # 上传 BKN 目录为 tar
+kweaver bkn validate <directory>                        # 验证本地 BKN 目录（不上传）
+kweaver bkn push <directory> [--branch main]            # 上传 BKN 目录为 tar
 kweaver bkn pull <kn_id> [<directory>] [--branch main]  # 下载 BKN tar 并解压
 ```
 

@@ -12,6 +12,7 @@ import {
   parseKnPullArgs,
   packDirectoryToTar,
   extractTarToDirectory,
+  runKnCommand,
 } from "../src/commands/bkn.js";
 import { downloadBkn, uploadBkn } from "../src/api/bkn-backend.js";
 
@@ -224,5 +225,70 @@ test("tar pack and extract round-trip for k8s-network", () => {
   const before = collectBknFiles(k8sNetwork);
   const after = collectBknFiles(outDir);
   assert.deepEqual(after, before, "BKN files should match after round-trip");
+});
+
+// ---------------------------------------------------------------------------
+// bkn validate
+// ---------------------------------------------------------------------------
+
+test("validate: succeeds on valid k8s-network example", async () => {
+  const k8sNetwork = join(FIXTURES_ROOT, "k8s-network");
+  if (!existsSync(k8sNetwork)) {
+    test.skip("BKN examples not found at " + k8sNetwork);
+    return;
+  }
+  const code = await runKnCommand(["validate", k8sNetwork]);
+  assert.equal(code, 0);
+});
+
+test("validate: succeeds on valid football-league example", async () => {
+  const footballLeague = join(FIXTURES_ROOT, "football-league");
+  if (!existsSync(footballLeague)) {
+    test.skip("BKN examples not found at " + footballLeague);
+    return;
+  }
+  const code = await runKnCommand(["validate", footballLeague]);
+  assert.equal(code, 0);
+});
+
+test("validate: succeeds on valid supplychain-hd example", async () => {
+  const supplychain = join(FIXTURES_ROOT, "supplychain-hd");
+  if (!existsSync(supplychain)) {
+    test.skip("BKN examples not found at " + supplychain);
+    return;
+  }
+  const code = await runKnCommand(["validate", supplychain]);
+  assert.equal(code, 0);
+});
+
+test("validate: fails on non-existent directory", async () => {
+  const code = await runKnCommand(["validate", "/tmp/nonexistent-bkn-dir-xyz"]);
+  assert.equal(code, 1);
+});
+
+test("validate: fails with no arguments", async () => {
+  const code = await runKnCommand(["validate"]);
+  assert.equal(code, 1);
+});
+
+test("validate: --help returns 0", async () => {
+  const code = await runKnCommand(["validate", "--help"]);
+  assert.equal(code, 0);
+});
+
+test("validate: fails on empty directory", async () => {
+  const emptyDir = mkdtempSync(join(tmpdir(), "bkn-validate-empty-"));
+  const code = await runKnCommand(["validate", emptyDir]);
+  assert.equal(code, 1);
+});
+
+test("validate: fails on directory without network.bkn", async () => {
+  const badDir = mkdtempSync(join(tmpdir(), "bkn-validate-bad-"));
+  const otDir = join(badDir, "object_types");
+  const { mkdirSync: mkdir } = await import("node:fs");
+  mkdir(otDir, { recursive: true });
+  writeFileSync(join(otDir, "item.bkn"), "---\ntype: object_type\nid: item\nname: Item\n---\n# Item\n");
+  const code = await runKnCommand(["validate", badDir]);
+  assert.equal(code, 1);
 });
 

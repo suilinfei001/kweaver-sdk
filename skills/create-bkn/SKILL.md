@@ -68,7 +68,8 @@ Every BKN network uses this modular layout — **each definition is a separate f
 6. **Create `concept_groups/*.bkn`** — optional, read [references/concept_groups.md](references/concept_groups.md)
 7. **Update `network.bkn`** — list all IDs in Network Overview
 8. **Add `SKILL.md`** — agent-facing guide (see below)
-9. **Import** — `kweaver bkn push <dir>` (validates with `loadNetwork`, then uploads tar). See below.
+9. **Validate (MUST)** — run `kweaver bkn validate <dir>`. Fix all errors until validation passes. See [Validation](#validation).
+10. **Import** (optional) — `kweaver bkn push <dir>` packs, validates, then uploads. See below.
 
 ## Import via kweaver CLI
 
@@ -86,6 +87,18 @@ kweaver bkn push <path-to-bkn-directory> [--branch main] [-bd <business-domain>]
 ```
 
 `push` packs the directory (macOS tar uses `COPYFILE_DISABLE=1`), may refresh `CHECKSUM`, then imports on the platform. Export: `kweaver bkn pull <kn-id> [<dir>]`. More `kweaver bkn` commands: [kweaver-core/references/bkn.md](../kweaver-core/references/bkn.md).
+
+## Validation
+
+> **MUST** — Every generated BKN directory must be validated before delivery or upload.
+
+```bash
+kweaver bkn validate <path-to-bkn-directory>
+```
+
+On success prints `Valid: N object types, N relation types, N action types`. On failure prints each error and exits non-zero.
+
+If validation fails, read the error messages, fix the `.bkn` files, and re-run until it passes.
 
 ## Per-Type Reference
 
@@ -108,14 +121,30 @@ Read the reference for the type you are creating:
 
 ## Validation Checklist
 
-- [ ] `network.bkn` exists and lists all IDs in Network Overview
-- [ ] Each `.bkn` file is in the correct subdirectory (`object_types/`, `relation_types/`, etc.)
-- [ ] All relation Endpoints reference existing object_type IDs
-- [ ] Action Bound Object references existing object_type ID
-- [ ] Parameter Binding Source: `property` / `input` / `const`; Binding matches
-- [ ] No `type: delete` or `type: patch` files (BKN uses upsert-only model)
-- [ ] Tables use canonical English column names (Name, Display Name, Type, etc.)
-- [ ] YAML code blocks for Trigger Condition use correct `condition:` structure
+> **MANDATORY** — You MUST pass every item below before considering a BKN directory complete. Run `kweaver bkn validate <dir>` (see [Validation](#validation)) to catch errors automatically.
+
+### Structure & Frontmatter
+
+- [ ] `network.bkn` exists at directory root with `type: network` frontmatter
+- [ ] Every `.bkn` file has valid YAML frontmatter containing at least `type`, `id`, `name`
+- [ ] Each `.bkn` file lives in the correct subdirectory matching its `type` (`object_types/`, `relation_types/`, `action_types/`, `risk_types/`, `concept_groups/`)
+- [ ] File name matches `{id}.bkn` (e.g. frontmatter `id: pod` → file `object_types/pod.bkn`)
+
+### Referential Integrity
+
+- [ ] `network.bkn` Network Overview lists **all** IDs from every subdirectory — nothing missing, nothing extra
+- [ ] All relation type Endpoints reference existing object_type IDs defined in `object_types/`
+- [ ] All action type Bound Object IDs reference existing object_type IDs
+- [ ] Risk type references (if any) point to existing action_type or object_type IDs
+- [ ] Concept group `## Object Types` only list existing object_type IDs
+
+### Content Quality
+
+- [ ] Table column names use canonical English headers (Name, Display Name, Type, Required, Description, etc.)
+- [ ] Parameter Binding `Source` is one of: `property`, `input`, `const`
+- [ ] YAML code blocks (e.g. Trigger Condition) parse as valid YAML
+- [ ] No `type: delete` or `type: patch` files — BKN uses upsert-only model
+- [ ] Heading hierarchy is strict: `#` > `##` > `###` > `####` with no level skips
 
 ## Output Rules
 

@@ -14,5 +14,5 @@ business_domain: sports
 
 - **ObjectTypes** (object_types/): league, team, player, match, goal
 - **RelationTypes** (relation_types/): team_in_league, player_belongs_team, match_home_team, match_away_team, goal_scored_by
-- **ActionTypes** (action_types/): transfer_player, suspend_player
+- **ActionTypes** (action_types/): transfer_player, suspend_player, award_player
 - **ConceptGroups** (concept_groups/): football

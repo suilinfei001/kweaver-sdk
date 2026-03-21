@@ -1,0 +1,54 @@
+---
+type: action_type
+id: award_player
+name: 球员授予奖项
+tags: [荣誉, 球员管理]
+enabled: false
+risk_level: low
+requires_approval: false
+---
+
+## ActionType: 球员授予奖项
+
+为球员登记或授予个人荣誉奖项（如联赛最佳球员、金靴、月度最佳等），写入荣誉记录供展示与统计。
+
+### Bound Object
+
+| Bound Object | Action Type |
+|--------------|-------------|
+| player | modify |
+
+### Pre-conditions
+
+| Object | Check | Condition | Message |
+|--------|-------|-----------|---------|
+| player | property:status | == active | 仅可为活跃状态球员登记奖项 |
+
+### Scope of Impact
+
+| Object | Impact Description |
+|--------|---------------------|
+| player | 新增或更新球员荣誉记录（由运行时写入奖项履历） |
+
+### Tool Configuration
+
+| Type | Toolbox ID | Tool ID |
+|------|------------|---------|
+| tool | football_ops | player_award_grant |
+
+### Parameter Binding
+
+| Parameter | Type | Source | Binding | Description |
+|-----------|------|--------|---------|-------------|
+| player_id | integer | property | id | 球员ID |
+| player_name | string | property | player_name | 球员姓名 |
+| award_name | string | input | - | 奖项名称（如「联赛金靴」） |
+| award_season | string | input | - | 赛季标识（如「2025-26」） |
+| award_category | string | input | - | 奖项类别（如 individual / team） |
+| notes | string | input | - | 备注（可选） |
+
+### Execution Description
+
+1. 校验球员为活跃状态
+2. 写入奖项名称、赛季与类别
+3. 关联球员档案并保留审计信息

@@ -1368,6 +1368,50 @@ class TestBknPushPull:
         assert (out_dir / "network.bkn").exists()
 
 
+# ---------------------------------------------------------------------------
+# BKN validate
+# ---------------------------------------------------------------------------
+
+
+class TestBknValidate:
+    def test_validate_valid_directory(self, runner, tmp_path):
+        """validate succeeds on a well-formed BKN directory."""
+        (tmp_path / "network.bkn").write_text(
+            "---\ntype: knowledge_network\nid: test\nname: Test\n---\n# Test\n"
+        )
+        ot_dir = tmp_path / "object_types"
+        ot_dir.mkdir()
+        (ot_dir / "item.bkn").write_text(
+            "---\ntype: object_type\nid: item\nname: Item\n---\n# Item\n"
+        )
+
+        result = runner.invoke(cli, ["bkn", "validate", str(tmp_path)])
+        assert result.exit_code == 0, result.output
+        assert "Valid:" in result.output
+
+    def test_validate_not_a_directory(self, runner):
+        """validate fails on a non-existent path."""
+        result = runner.invoke(cli, ["bkn", "validate", "/nonexistent/dir"])
+        assert result.exit_code != 0
+
+    def test_validate_empty_directory(self, runner, tmp_path):
+        """validate fails on a directory without network.bkn."""
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        result = runner.invoke(cli, ["bkn", "validate", str(empty)])
+        assert result.exit_code != 0
+
+    def test_validate_no_network_bkn(self, runner, tmp_path):
+        """validate fails when network.bkn is missing."""
+        ot_dir = tmp_path / "object_types"
+        ot_dir.mkdir()
+        (ot_dir / "item.bkn").write_text(
+            "---\ntype: object_type\nid: item\nname: Item\n---\n# Item\n"
+        )
+        result = runner.invoke(cli, ["bkn", "validate", str(tmp_path)])
+        assert result.exit_code != 0
+
+
 def test_context_loader_config_set_no_active_platform(runner):
     with patch("kweaver.cli.context_loader.PlatformStore") as MockStore:
         store = MockStore.return_value
