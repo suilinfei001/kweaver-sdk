@@ -53,6 +53,14 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.3"
   },
+  "peerDependencies": {
+    "playwright": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@kweaver-ai/bkn": "^0.1.0",
     "ink": "^6.8.0",
