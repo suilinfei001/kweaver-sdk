@@ -101,14 +101,28 @@ export async function run(argv: string[]): Promise<number> {
   return 1;
 }
 
+function safeExit(code: number): void {
+  if (process.stdout.writableNeedDrain || process.stderr.writableNeedDrain) {
+    const done = () => {
+      if (!process.stdout.writableNeedDrain && !process.stderr.writableNeedDrain) {
+        process.exit(code);
+      }
+    };
+    process.stdout.once("drain", done);
+    process.stderr.once("drain", done);
+  } else {
+    process.exit(code);
+  }
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   run(process.argv.slice(2))
     .then((code) => {
-      process.exit(code);
+      safeExit(code);
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error(message);
-      process.exit(1);
+      safeExit(1);
     });
 }
