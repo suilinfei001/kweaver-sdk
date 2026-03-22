@@ -104,6 +104,44 @@ test("listMessages returns empty array on 404", { concurrency: false }, async ()
   }
 });
 
+test("listConversations throws on non-404 error", { concurrency: false }, async () => {
+  globalThis.fetch = async () => new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" });
+  try {
+    await assert.rejects(
+      () => listConversations({
+        baseUrl: "https://dip.aishu.cn",
+        accessToken: "token-abc",
+        agentId: "agent-123",
+      }),
+      (err: Error) => {
+        assert.ok(err.message.includes("500"));
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("listMessages throws on non-404 error", { concurrency: false }, async () => {
+  globalThis.fetch = async () => new Response("Forbidden", { status: 403, statusText: "Forbidden" });
+  try {
+    await assert.rejects(
+      () => listMessages({
+        baseUrl: "https://dip.aishu.cn",
+        accessToken: "token-abc",
+        conversationId: "conv-abc",
+      }),
+      (err: Error) => {
+        assert.ok(err.message.includes("403"));
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("run agent sessions prints conversations for agent", { concurrency: false }, async () => {
   const configDir = createConfigDir();
   process.env.KWEAVERC_CONFIG_DIR = configDir;

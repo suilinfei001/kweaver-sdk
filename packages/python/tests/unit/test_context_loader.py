@@ -151,8 +151,9 @@ def test_session_initialization():
 
 def test_session_cached_on_second_call():
     """Session should be reused (not re-initialized) on subsequent calls."""
+    import time
     from kweaver.resources import context_loader as _mod
-    _mod._session_cache[f"{_MCP_URL}:{_KN_ID}"] = _SESSION_ID
+    _mod._session_cache[f"{_MCP_URL}:{_KN_ID}"] = (_SESSION_ID, time.time())
 
     cl, transport = _make_cl([
         _tool_response({"object_types": [{"id": "ot1"}]}),

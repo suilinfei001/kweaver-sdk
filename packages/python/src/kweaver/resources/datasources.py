@@ -130,9 +130,9 @@ class DataSourcesResource:
             },
         )
         task_id = result.get("id", "")
-        # Poll until scan completes (max ~60s)
-        for _ in range(30):
-            time.sleep(2)
+        # Poll until scan completes with exponential backoff
+        for attempt in range(30):
+            time.sleep(min(2 * (1.5 ** attempt), 15))
             status = self._http.get(f"/api/data-connection/v1/metadata/scan/{task_id}")
             if status.get("status") in ("success", "fail"):
                 break

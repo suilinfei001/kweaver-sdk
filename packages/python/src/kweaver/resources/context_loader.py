@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+import time
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -21,14 +23,18 @@ logger = logging.getLogger("kweaver.context_loader")
 MCP_PROTOCOL_VERSION = "2024-11-05"
 MCP_PATH = "/api/agent-retrieval/v1/mcp"
 
-_session_cache: dict[str, str] = {}
+_SESSION_TTL = 300  # seconds — sessions expire after 5 minutes
+
+_cache_lock = threading.Lock()
+_session_cache: dict[str, tuple[str, float]] = {}  # key -> (session_id, created_at)
 _request_id: int = 0
 
 
 def _next_id() -> int:
     global _request_id
-    _request_id += 1
-    return _request_id
+    with _cache_lock:
+        _request_id += 1
+        return _request_id
 
 
 def _build_mcp_url(base_url: str) -> str:
@@ -61,9 +67,14 @@ class ContextLoaderResource:
         return headers
 
     def _ensure_session(self) -> str:
-        cached = _session_cache.get(self._cache_key)
-        if cached:
-            return cached
+        with _cache_lock:
+            cached = _session_cache.get(self._cache_key)
+            if cached:
+                session_id, created_at = cached
+                if time.time() - created_at < _SESSION_TTL:
+                    return session_id
+                # Expired — remove stale entry
+                _session_cache.pop(self._cache_key, None)
 
         init_body = json.dumps({
             "jsonrpc": "2.0",
@@ -108,7 +119,8 @@ class ContextLoaderResource:
                 timeout=10.0,
             )
 
-        _session_cache[self._cache_key] = session_id
+        with _cache_lock:
+            _session_cache[self._cache_key] = (session_id, time.time())
         return session_id
 
     def _call_method(self, method: str, params: dict[str, Any] | None = None) -> Any:

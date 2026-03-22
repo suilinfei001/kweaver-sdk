@@ -51,7 +51,7 @@ export async function listConversations(opts: ListConversationsOptions): Promise
 
   const body = await response.text();
   if (!response.ok) {
-    return "[]";
+    throw new Error(`listConversations failed: HTTP ${response.status} ${response.statusText} — ${body.slice(0, 200)}`);
   }
 
   return body || "[]";
@@ -84,7 +84,7 @@ export async function listMessages(opts: ListMessagesOptions): Promise<string> {
 
   const body = await response.text();
   if (!response.ok) {
-    return "[]";
+    throw new Error(`listMessages failed: HTTP ${response.status} ${response.statusText} — ${body.slice(0, 200)}`);
   }
 
   return body || "[]";

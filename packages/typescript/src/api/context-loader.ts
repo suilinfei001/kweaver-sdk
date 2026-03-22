@@ -9,7 +9,8 @@ export interface ContextLoaderCallOptions {
 
 const MCP_PROTOCOL_VERSION = "2024-11-05";
 
-const sessionCache = new Map<string, string>();
+const SESSION_TTL_MS = 300_000; // 5 minutes
+const sessionCache = new Map<string, { id: string; createdAt: number }>();
 
 function sessionKey(options: ContextLoaderCallOptions): string {
   return `${options.mcpUrl}:${options.knId}`;
@@ -32,7 +33,9 @@ function buildHeaders(options: ContextLoaderCallOptions, sessionId?: string): Re
 async function ensureSession(options: ContextLoaderCallOptions): Promise<string> {
   const key = sessionKey(options);
   const cached = sessionCache.get(key);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.createdAt < SESSION_TTL_MS) return cached.id;
+  // Remove stale entry if expired
+  if (cached) sessionCache.delete(key);
 
   const initBody = JSON.stringify({
     jsonrpc: "2.0",
@@ -69,7 +72,7 @@ async function ensureSession(options: ContextLoaderCallOptions): Promise<string>
     body: initNotifBody,
   });
 
-  sessionCache.set(key, sessionId);
+  sessionCache.set(key, { id: sessionId, createdAt: Date.now() });
   return sessionId;
 }
 

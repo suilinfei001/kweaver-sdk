@@ -39,7 +39,7 @@ jobs:
         run: npm run lint
 
       - name: Run tests
-        run: node --import tsx --test test/cli.test.ts
+        run: npm test
 
       - name: Publish package
         run: npm publish --provenance --access public

@@ -360,7 +360,12 @@ export async function sendChatRequest(options: SendChatRequestOptions): Promise<
 
   if (verbose) {
     console.error(`POST ${url}`);
-    console.error(`Headers: ${JSON.stringify(headers)}`);
+    const safeHeaders = Object.fromEntries(
+      Object.entries(headers).map(([k, v]) =>
+        k.toLowerCase() === "authorization" ? [k, "Bearer ***"] : [k, v]
+      )
+    );
+    console.error(`Headers: ${JSON.stringify(safeHeaders)}`);
     console.error(`Body: ${JSON.stringify(body)}`);
   }
 
@@ -446,7 +451,12 @@ export async function sendChatRequestStream(
 
   if (verbose) {
     console.error(`POST ${url}`);
-    console.error(`Headers: ${JSON.stringify(headers)}`);
+    const safeHeaders = Object.fromEntries(
+      Object.entries(headers).map(([k, v]) =>
+        k.toLowerCase() === "authorization" ? [k, "Bearer ***"] : [k, v]
+      )
+    );
+    console.error(`Headers: ${JSON.stringify(safeHeaders)}`);
     console.error(`Body: ${JSON.stringify(body)}`);
   }
 

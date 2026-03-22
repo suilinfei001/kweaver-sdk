@@ -385,7 +385,8 @@ export async function scanMetadata(options: ScanMetadataOptions): Promise<string
   const taskId = scanResult.id ?? "";
 
   for (let i = 0; i < 30; i += 1) {
-    await new Promise((r) => setTimeout(r, 2000));
+    const delay = Math.min(2000 * Math.pow(1.5, i), 15000);
+    await new Promise((r) => setTimeout(r, delay));
     const statusResponse = await fetch(statusUrl(taskId), {
       method: "GET",
       headers: buildHeaders(accessToken, businessDomain),

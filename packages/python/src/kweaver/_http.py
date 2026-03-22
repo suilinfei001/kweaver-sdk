@@ -15,7 +15,7 @@ from kweaver._errors import NetworkError, raise_for_status
 
 logger = logging.getLogger("kweaver.http")
 
-_SENSITIVE_BODY_KEYS = {"password", "secret", "client_secret"}
+_SENSITIVE_BODY_KEYS = {"password", "secret", "client_secret", "api_key", "auth_token", "credential", "access_token", "refresh_token"}
 _MAX_RETRIES = 3
 _BACKOFF_BASE = 0.5
 
@@ -256,7 +256,8 @@ class HttpClient:
                     break
                 try:
                     yield _json.loads(line)
-                except Exception:
+                except (ValueError, _json.JSONDecodeError) as exc:
+                    logger.warning("Skipping unparseable SSE line: %s (%s)", line[:200], exc)
                     continue
 
     def close(self) -> None:
