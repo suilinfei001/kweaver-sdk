@@ -115,6 +115,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Enable destructive tests that create/delete knowledge networks",
     )
+    parser.addoption(
+        "--build",
+        action="store_true",
+        default=False,
+        help="Build from scratch: CSV import → datasource → KN → build → test → cleanup",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
