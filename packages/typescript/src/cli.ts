@@ -34,6 +34,11 @@ Usage:
   kweaver bkn create [options]
   kweaver bkn update <kn-id> [options]
   kweaver bkn delete <kn-id>
+  kweaver bkn object-type list|get|create|update|delete|query <kn-id> ...
+  kweaver bkn relation-type list|get|create|update|delete <kn-id> ...
+  kweaver bkn action-type list|query|execute <kn-id> ...
+  kweaver bkn push <directory> [--branch main]
+  kweaver bkn pull <kn-id> [directory] [--branch main]
   kweaver config [set-bd|show]
   kweaver vega [health|stats|inspect|catalog|resource|connector-type]
   kweaver context-loader [config|kn-search|...]
