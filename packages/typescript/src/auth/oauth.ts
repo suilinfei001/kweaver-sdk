@@ -210,13 +210,23 @@ async function exchangeCodeForToken(
 }
 
 /**
- * Playwright cookie login (legacy fallback).
- * Does NOT produce a refresh_token — token expires in 1 hour with no auto-refresh.
+ * Playwright-automated OAuth2 login.
+ *
+ * Uses the full OAuth2 authorization code flow (same as `oauth2Login`) but
+ * automates the browser interaction with Playwright.  This produces a
+ * refresh_token so the CLI can auto-refresh without re-login.
+ *
+ * When `username` and `password` are provided the browser runs headless and
+ * fills the login form automatically.  Otherwise it opens a visible browser
+ * window for manual login (same UX as the old cookie-based flow).
  */
 export async function playwrightLogin(
   baseUrl: string,
-  options?: { username?: string; password?: string },
+  options?: { username?: string; password?: string; port?: number; scope?: string },
 ): Promise<TokenConfig> {
+  const { createServer } = await import("node:http");
+  const { randomBytes } = await import("node:crypto");
+
   let chromium: any;
   try {
     const modName = "playwright";
@@ -228,77 +238,104 @@ export async function playwrightLogin(
     );
   }
 
-  const hasCredentials = options?.username && options?.password;
-  const browser = await chromium.launch({ headless: hasCredentials ? true : false });
-  try {
-    const context = await browser.newContext();
-    const page = await context.newPage();
+  const base = normalizeBaseUrl(baseUrl);
+  const port = options?.port ?? DEFAULT_REDIRECT_PORT;
+  const scope = options?.scope ?? DEFAULT_SCOPE;
+  const redirectUri = `http://127.0.0.1:${port}/callback`;
+  const hasCredentials = !!(options?.username && options?.password);
 
-    await page.goto(`${baseUrl}/api/dip-hub/v1/login`, {
-      waitUntil: "networkidle",
-      timeout: 30_000,
+  // Step 1: Ensure registered OAuth2 client
+  let client = loadClientConfig(base);
+  if (!client?.clientId) {
+    client = await registerOAuth2Client(base, redirectUri, scope);
+    saveClientConfig(base, client);
+  }
+
+  // Step 2: Generate CSRF state
+  const state = randomBytes(12).toString("hex");
+
+  // Step 3: Build authorization URL
+  const authParams = new URLSearchParams({
+    redirect_uri: redirectUri,
+    "x-forwarded-prefix": "",
+    client_id: client.clientId,
+    scope,
+    response_type: "code",
+    state,
+    lang: "zh-cn",
+    product: "adp",
+  });
+  const authUrl = `${base}/oauth2/auth?${authParams.toString()}`;
+
+  // Step 4: Start local callback server to capture the authorization code
+  const code = await new Promise<string>((resolve, reject) => {
+    const TIMEOUT_MS = hasCredentials ? 30_000 : 120_000;
+    const timeoutId = setTimeout(() => {
+      server.close();
+      browser?.close();
+      reject(new Error(`OAuth2 login timed out (${TIMEOUT_MS / 1000}s). No authorization code received.`));
+    }, TIMEOUT_MS);
+
+    const server = createServer((req, res) => {
+      const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
+      if (url.pathname === "/callback") {
+        const receivedState = url.searchParams.get("state");
+        const receivedCode = url.searchParams.get("code");
+
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end("<html><body><h2>Login successful. You can close this tab.</h2></body></html>");
+
+        clearTimeout(timeoutId);
+        server.close();
+        browser?.close();
+
+        if (receivedState !== state) {
+          reject(new Error("OAuth2 state mismatch — possible CSRF attack."));
+        } else if (!receivedCode) {
+          reject(new Error("No authorization code received in callback."));
+        } else {
+          resolve(receivedCode);
+        }
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
     });
 
-    if (hasCredentials) {
-      // Headless mode: auto-fill credentials
-      await page.waitForSelector('input[name="account"]', { timeout: 10_000 });
-      await page.fill('input[name="account"]', options.username!);
-      await page.fill('input[name="password"]', options.password!);
-      await page.click("button.ant-btn-primary");
-    }
-    // else: headed mode — user logs in manually in the browser window
+    let browser: any;
 
-    const TIMEOUT_SECONDS = hasCredentials ? 30 : 120;
-    let accessToken: string | null = null;
-    for (let i = 0; i < TIMEOUT_SECONDS; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
+    server.listen(port, "127.0.0.1", async () => {
+      try {
+        browser = await chromium.launch({ headless: hasCredentials });
+        const context = await browser.newContext();
+        const page = await context.newPage();
 
-      // Check cookies (works even after navigation)
-      for (const cookie of await context.cookies()) {
-        if (cookie.name === "dip.oauth2_token") {
-          accessToken = decodeURIComponent(cookie.value);
-          break;
+        // Navigate to OAuth2 auth URL — redirects to signin page
+        await page.goto(authUrl, { waitUntil: "networkidle", timeout: 30_000 });
+
+        if (hasCredentials) {
+          // Auto-fill credentials
+          await page.waitForSelector('input[name="account"]', { timeout: 10_000 });
+          await page.fill('input[name="account"]', options!.username!);
+          await page.fill('input[name="password"]', options!.password!);
+          await page.click("button.ant-btn-primary");
         }
+        // else: visible browser — user logs in manually
+        // The OAuth2 callback will fire when login completes, resolving the promise above
+      } catch (err) {
+        clearTimeout(timeoutId);
+        server.close();
+        browser?.close();
+        reject(err);
       }
-      if (accessToken) break;
+    });
+  });
 
-      // In headless mode, check for login error messages
-      if (hasCredentials) {
-        try {
-          const errorEl = await page.$(".ant-message-error, .ant-alert-error");
-          if (errorEl) {
-            const errorText = await errorEl.textContent();
-            throw new Error(`Login failed: ${errorText?.trim() || "unknown error"}`);
-          }
-        } catch (e) {
-          if (e instanceof Error && e.message.startsWith("Login failed:")) throw e;
-        }
-      }
-    }
+  // Step 5: Exchange authorization code for tokens (includes refresh_token)
+  const token = await exchangeCodeForToken(base, code, client.clientId, client.clientSecret, redirectUri);
 
-    if (!accessToken) {
-      throw new Error(
-        `Login timed out: dip.oauth2_token cookie not received within ${TIMEOUT_SECONDS} seconds.`
-      );
-    }
-
-    const now = new Date();
-    const tokenConfig: TokenConfig = {
-      baseUrl,
-      accessToken,
-      tokenType: "bearer",
-      scope: "",
-      expiresIn: TOKEN_TTL_SECONDS,
-      expiresAt: new Date(now.getTime() + TOKEN_TTL_SECONDS * 1000).toISOString(),
-      obtainedAt: now.toISOString(),
-    };
-
-    saveTokenConfig(tokenConfig);
-    setCurrentPlatform(baseUrl);
-    return tokenConfig;
-  } finally {
-    await browser.close();
-  }
+  setCurrentPlatform(base);
+  return token;
 }
 
 function tokenNeedsRefresh(token: TokenConfig): boolean {

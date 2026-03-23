@@ -5,12 +5,17 @@
  * - Provides runCli() to capture stdout/stderr from CLI
  * - Skip logic: tests require KWEAVER_BASE_URL
  * - Destructive tests gated by E2E_RUN_DESTRUCTIVE=1
+ *
+ * Token refresh is handled by the `ensure-token.ts` pretest script
+ * (run once before `node --test`, not per test file).
  */
 
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { run } from "../../src/cli.js";
+import { setCurrentPlatform } from "../../src/config/store.js";
+import { normalizeBaseUrl } from "../../src/auth/oauth.js";
 
 /** Find repo root by walking up from this file looking for .git */
 function findRepoRoot(): string | null {
@@ -55,6 +60,12 @@ loadEnvFile(GLOBAL_ENV_PATH);
 // KWEAVER_BASE_URL is kept — it's used by shouldSkipE2e() to detect
 // whether an e2e environment is configured at all.
 delete process.env.KWEAVER_TOKEN;
+
+// Ensure CLI targets the e2e platform (set by ensure-token.ts pretest script)
+const _baseUrl = process.env.KWEAVER_BASE_URL;
+if (_baseUrl) {
+  setCurrentPlatform(normalizeBaseUrl(_baseUrl));
+}
 
 export function getE2eEnv(): {
   baseUrl: string;

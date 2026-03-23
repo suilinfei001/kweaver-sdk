@@ -88,16 +88,14 @@ def test_kn_search_only_schema(kweaver_client: KWeaverClient, kn_with_data):
     assert result is not None
 
 
-def test_object_type_properties(kweaver_client: KWeaverClient, kn_with_data):
+def test_object_type_properties(kweaver_client: KWeaverClient, e2e_test_data):
     """object_type_properties should return property values for a specific instance."""
-    kn = kn_with_data["kn"]
-    ot = kn_with_data["ot"]
-    instances = kweaver_client.query.instances(kn.id, ot.id, limit=1)
-    if not instances.data:
-        pytest.skip("No instances to query properties for")
-    identity = instances.data[0].get("_instance_identity")
+    kn = e2e_test_data["kn"]
+    ot = e2e_test_data["ot"]
+    sample = e2e_test_data.get("sample", {})
+    identity = sample.get("_instance_identity")
     if not identity:
-        pytest.skip("Instance has no _instance_identity")
+        pytest.skip("No instance with _instance_identity")
     prop_name = ot.properties[0].name if ot.properties else None
     if not prop_name:
         pytest.skip("Object type has no properties")

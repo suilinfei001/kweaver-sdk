@@ -120,7 +120,7 @@ def test_mcp_rest_data_consistency(kweaver_client: KWeaverClient, cl_context):
         limit=1,
     )
     assert rest_result.data, f"REST no data for {pk_field}={pk_value}"
-    rest_display = rest_result.data[0].get("_display", "")
+    rest_display = str(rest_result.data[0].get("_display", ""))
 
     # MCP
     mcp_result = cl.query_object_instance(

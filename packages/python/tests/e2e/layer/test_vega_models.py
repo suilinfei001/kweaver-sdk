@@ -23,6 +23,6 @@ def test_model_list(vega_client, attr):
 def test_model_get(vega_client, attr):
     items = getattr(vega_client, attr).list(limit=1)
     if not items:
-        pytest.skip(f"No {attr} available")
+        pytest.skip(f"No {attr} on this Vega instance (empty list is valid)")
     item = getattr(vega_client, attr).get(items[0].id)
     assert item.id == items[0].id

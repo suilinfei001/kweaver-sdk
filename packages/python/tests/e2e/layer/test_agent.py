@@ -28,18 +28,41 @@ def test_list_agents_published(kweaver_client: KWeaverClient):
 
 @pytest.fixture(scope="module")
 def any_agent(kweaver_client: KWeaverClient):
-    """Find first agent the current user can access (get without 403)."""
-    from kweaver._errors import AuthorizationError
+    """Create a temporary agent for read tests, delete on teardown."""
+    # Discover LLM model (required for agent creation)
+    http = kweaver_client._http
+    try:
+        data = http.get("/api/mf-model-manager/v1/llm/list", params={"page": 1, "size": 100})
+    except Exception:
+        pytest.skip("model-factory not available")
+    models = (data or {}).get("data", [])
+    llm = next((m for m in models if m.get("model_type") == "llm"), None)
+    if not llm:
+        pytest.skip("no LLM model available")
 
-    agents = kweaver_client.agents.list()
-    assert agents, "No agents found — cannot proceed"
-    for a in agents:
-        try:
-            kweaver_client.agents.get(a.id)
-            return a
-        except AuthorizationError:
-            continue
-    pytest.skip("No accessible agents (all returned 403)")
+    config = {
+        "input": {"fields": [{"name": "user_input", "type": "string", "desc": ""}]},
+        "output": {"default_format": "markdown"},
+        "system_prompt": "E2E read test agent",
+        "llms": [{"is_default": True, "llm_config": {
+            "id": llm["model_id"], "name": llm["model_name"],
+            "model_type": "llm", "max_tokens": 4096,
+        }}],
+    }
+
+    result = kweaver_client.agents.create(
+        name="e2e_read_test_agent",
+        profile="E2E test agent for read operations",
+        key="e2e_read_test_key",
+        config=config,
+    )
+    agent_id = result.get("id") if isinstance(result, dict) else result.id
+    agent = kweaver_client.agents.get(agent_id)
+    yield agent
+    try:
+        kweaver_client.agents.delete(agent_id)
+    except Exception:
+        pass
 
 
 def test_get_agent(kweaver_client: KWeaverClient, any_agent):

@@ -35,12 +35,12 @@ def test_relation_type_list(kweaver_client: KWeaverClient, kn_with_data):
     assert isinstance(rts, list)
 
 
-def test_relation_type_get_if_exists(kweaver_client: KWeaverClient, kn_with_data):
-    """SDK: get relation type by ID (if any exist)."""
-    kn = kn_with_data["kn"]
-    rts = kweaver_client.relation_types.list(kn.id)
-    if not rts:
-        pytest.skip("No relation types exist to test get")
-    rt = kweaver_client.relation_types.get(kn.id, rts[0].id)
-    assert rt.id == rts[0].id
-    assert rt.name == rts[0].name
+def test_relation_type_get(kweaver_client: KWeaverClient, e2e_test_data):
+    """SDK: get relation type by ID."""
+    kn = e2e_test_data["kn"]
+    rt = e2e_test_data.get("rt")
+    if not rt:
+        pytest.skip("No relation type available (need 2+ tables for RT)")
+    result = kweaver_client.relation_types.get(kn.id, rt.id)
+    assert result.id == rt.id
+    assert result.name == rt.name

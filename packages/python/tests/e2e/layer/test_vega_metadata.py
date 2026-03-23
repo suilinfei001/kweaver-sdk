@@ -6,14 +6,16 @@ pytestmark = pytest.mark.e2e
 
 
 def test_vega_health(vega_client):
-    """SDK: vega health returns server info (may 404 behind gateway)."""
+    """SDK: vega health or stats returns server info."""
     from kweaver._errors import NotFoundError
     try:
         info = vega_client.health()
         assert info.server_name
         assert info.server_version
     except NotFoundError:
-        pytest.skip("health endpoint not available via gateway")
+        # health endpoint not exposed via gateway — verify stats works instead
+        stats = vega_client.stats()
+        assert stats is not None
 
 
 def test_vega_catalog_list(vega_client):
