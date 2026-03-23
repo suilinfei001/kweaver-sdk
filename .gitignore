@@ -12,6 +12,7 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 .coverage
 test-result/
 .worktrees/
