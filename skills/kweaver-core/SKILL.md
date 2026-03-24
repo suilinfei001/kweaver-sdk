@@ -54,11 +54,17 @@ kweaver <command> [subcommand] [options]
 | `token` | 打印当前 access token（自动刷新） | `token` | — |
 | `bkn` | BKN 知识网络管理、Schema、查询、Action | `bkn list`, `bkn object-type query …`, `bkn search …`, `bkn push`/`pull`；更多见 `kweaver --help` | `references/bkn.md` |
 | `agent` | Agent CRUD、发布、对话 | `agent list`, `agent get <id>`, `agent chat <id> -m "..."` | `references/agent.md` |
-| `ds` | 数据源管理 | `ds list`, `ds get <id>` | `references/ds.md` |
+| `ds` | 数据源管理 | `ds list`, `ds get <id>`, `ds import-csv <id> --files ...` | `references/ds.md` |
 | `vega` | Vega 可观测平台 | `vega health`, `vega catalog list`, `vega resource list` | `references/vega.md` |
 | `config` | 平台配置（business domain 等） | `config show`, `config set-bd <uuid>` | `references/config.md` |
 | `context-loader` | MCP 分层检索 | `context-loader config show`, `context-loader kn-search <query>` | `references/context-loader.md` |
 | `call` | 通用 API 调用 | `call <url> [-X POST] [-d '...']`（可用 `curl` 别名；支持 `--url`、`--data-raw` 等，见 `kweaver --help`） | `references/call.md` |
+
+## 操作指南
+
+| 场景 | 说明 | 详细参考 |
+|------|------|---------|
+| 从数据库/CSV 构建 KN | 连接数据源 → CSV 导入 → 创建 KN → 构建索引 → 查询验证 → 绑定 Agent | [references/build-kn-from-db.md](references/build-kn-from-db.md) |
 
 **按需阅读**：需要子命令完整参数或编排示例时，读取对应的 reference 文件。
 
