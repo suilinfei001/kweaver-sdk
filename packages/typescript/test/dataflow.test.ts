@@ -252,7 +252,7 @@ test("pollDataflowResults uses exponential backoff between polls", async () => {
       dagId: "dag-backoff",
       interval: 3,
       timeout: 900,
-      _delayFn: async (ms: number) => { sleepDurations.push(ms); },
+      _sleep: async (ms: number) => { sleepDurations.push(ms); },
     });
     assert.equal(result.status, "success");
     // Backoff: 3000, 6000, 12000 (doubling, capped at 30000)

@@ -122,8 +122,8 @@ export interface PollDataflowOptions {
   interval?: number;
   /** Maximum time to wait in seconds. Default: 900 */
   timeout?: number;
-  /** Test injection: override delay function. */
-  _delayFn?: (ms: number) => Promise<void>;
+  /** Test injection: override sleep function. */
+  _sleep?: (ms: number) => Promise<void>;
 }
 
 /**
@@ -138,7 +138,7 @@ export async function pollDataflowResults(options: PollDataflowOptions): Promise
     dagId,
     interval = 3,
     timeout = 900,
-    _delayFn = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+    _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
   } = options;
 
   const base = baseUrl.replace(/\/+$/, "");
@@ -174,7 +174,7 @@ export async function pollDataflowResults(options: PollDataflowOptions): Promise
 
     // Still running — wait before next poll
     if (currentInterval > 0) {
-      await _delayFn(currentInterval * 1000);
+      await _sleep(currentInterval * 1000);
     }
     currentInterval = Math.min(currentInterval * 2, 30);
   }
