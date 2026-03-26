@@ -126,7 +126,10 @@ const results = await cl.search({ query: "hypertension treatment" });
 ## CLI Reference
 
 ```
-kweaver auth login <url> [--alias name] [-u user] [-p pass] [--playwright] [--insecure|-k] — also: status, list, use, delete, logout
+kweaver auth login <url> [--alias name] [-u user] [-p pass] [--playwright] [--insecure|-k]
+kweaver auth login <url> --client-id ID --client-secret S --refresh-token T   (headless login)
+kweaver auth export [url|alias] [--json]   (export command to run on a headless host)
+kweaver auth status/list/use/delete/logout
 kweaver token
 kweaver config show / set-bd <value>
 kweaver ds list/get/delete/tables/connect
@@ -183,6 +186,23 @@ If you encounter errors like `fetch failed`, `self-signed certificate`, or `UNAB
    ```
 
 > **Security note:** All of the above disable HTTPS certificate verification and should only be used in development or internal network environments. Use trusted CA-signed certificates in production.
+
+### Headless / Server Authentication
+
+For servers or CI environments without a browser, log in on any machine that has one, then transfer credentials:
+
+**Step 1 — Browser machine:** Run `kweaver auth login` as usual. The callback page displays a ready-to-copy command with `--client-id`, `--client-secret`, and `--refresh-token`. Alternatively, run `kweaver auth export` to print the same command.
+
+**Step 2 — On the machine without a browser:** Run the pasted command there (SSH server, CI, etc.):
+
+```bash
+kweaver auth login https://your-platform \
+  --client-id abc123 \
+  --client-secret def456 \
+  --refresh-token ghi789
+```
+
+The SDK exchanges the refresh token for a new access token and saves it locally. Auto-refresh works normally from that point on.
 
 ## Using with AI Agents
 

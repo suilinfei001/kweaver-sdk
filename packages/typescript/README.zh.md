@@ -115,7 +115,10 @@ const results = await cl.search({ query: "高血压 治疗" });
 ## 命令速查
 
 ```
-kweaver auth login <url> [--alias name] [-u user] [-p pass] [--playwright] [--insecure|-k] — 另有 status、list、use、delete、logout
+kweaver auth login <url> [--alias name] [-u user] [-p pass] [--playwright] [--insecure|-k]
+kweaver auth login <url> --client-id ID --client-secret S --refresh-token T   (无浏览器登录)
+kweaver auth export [url|alias] [--json]   (导出在无浏览器机器上运行的命令)
+kweaver auth status/list/use/delete/logout
 kweaver token
 kweaver ds list/get/delete/tables/connect
 kweaver dataview list/find/get/query/delete
@@ -166,6 +169,23 @@ kweaver call <path> [-X METHOD] [-d BODY] [-H header]
    ```
 
 > **安全提示：** 以上方式均会跳过 HTTPS 证书校验，仅适用于开发/内网环境。生产环境请使用受信任的 CA 签发证书。
+
+### 无浏览器 / 服务器端认证
+
+适用于 SSH 远程服务器、CI 环境等无浏览器场景：
+
+**第一步 — 有浏览器的机器：** 正常运行 `kweaver auth login`。登录成功后，回调页面会显示一条可复制的命令（含 `--client-id`、`--client-secret`、`--refresh-token`）。也可以用 `kweaver auth export` 查看。
+
+**第二步 — 在没有浏览器的那台机器上：** 在 SSH 服务器、CI 等环境中执行下面这条命令：
+
+```bash
+kweaver auth login https://your-platform \
+  --client-id abc123 \
+  --client-secret def456 \
+  --refresh-token ghi789
+```
+
+SDK 会用 refresh token 换取新的 access token 并保存到本地，之后自动续期正常工作。
 
 ## 在 AI 智能体中使用
 
