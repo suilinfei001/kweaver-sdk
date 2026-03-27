@@ -68,6 +68,7 @@ test("KWeaverClient exposes resource properties", () => {
   assert.ok(client.dataflows, "dataflows resource exists");
   assert.ok(client.datasources, "datasources resource exists");
   assert.ok(client.dataviews, "dataviews resource exists");
+  assert.ok(client.skills, "skills resource exists");
   assert.ok(client.vega, "vega resource exists");
   assert.ok(typeof client.contextLoader === "function", "contextLoader() factory exists");
 });

@@ -1,0 +1,203 @@
+"""SDK resource: skill registry, market, progressive read, and install helpers."""
+
+from __future__ import annotations
+
+import io
+import json
+import shutil
+import zipfile
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import httpx
+
+if TYPE_CHECKING:
+    from kweaver._http import HttpClient
+
+
+SkillStatus = str
+
+
+def _unwrap_data(payload: Any) -> Any:
+    if isinstance(payload, dict) and "data" in payload:
+        return payload["data"]
+    return payload
+
+
+class SkillsResource:
+    """Client for ADP/KWeaver skill management APIs."""
+
+    def __init__(self, http: HttpClient) -> None:
+        self._http = http
+
+    def list(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 30,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        all: bool | None = None,
+        name: str | None = None,
+        status: SkillStatus | None = None,
+        source: str | None = None,
+        create_user: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
+        if sort_by:
+            params["sort_by"] = sort_by
+        if sort_order:
+            params["sort_order"] = sort_order
+        if all is not None:
+            params["all"] = all
+        if name:
+            params["name"] = name
+        if status:
+            params["status"] = status
+        if source:
+            params["source"] = source
+        if create_user:
+            params["create_user"] = create_user
+        return _unwrap_data(self._http.get("/api/agent-operator-integration/v1/skills", params=params))
+
+    def market(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 30,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        all: bool | None = None,
+        name: str | None = None,
+        source: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
+        if sort_by:
+            params["sort_by"] = sort_by
+        if sort_order:
+            params["sort_order"] = sort_order
+        if all is not None:
+            params["all"] = all
+        if name:
+            params["name"] = name
+        if source:
+            params["source"] = source
+        return _unwrap_data(self._http.get("/api/agent-operator-integration/v1/skills/market", params=params))
+
+    def get(self, skill_id: str) -> dict[str, Any]:
+        return _unwrap_data(self._http.get(f"/api/agent-operator-integration/v1/skills/{skill_id}"))
+
+    def register_content(
+        self,
+        content: str,
+        *,
+        source: str | None = None,
+        extend_info: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "file_type": "content",
+            "file": content,
+        }
+        if source:
+            body["source"] = source
+        if extend_info is not None:
+            body["extend_info"] = extend_info
+        return _unwrap_data(self._http.post("/api/agent-operator-integration/v1/skills", json=body))
+
+    def register_zip(
+        self,
+        filename: str,
+        data: bytes,
+        *,
+        source: str | None = None,
+        extend_info: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        headers = self._http._build_headers()
+        files = {
+            "file_type": (None, "zip"),
+            "file": (filename, data, "application/zip"),
+        }
+        if source:
+            files["source"] = (None, source)
+        if extend_info is not None:
+            files["extend_info"] = (None, json.dumps(extend_info))
+        resp = self._http._client.post(
+            "/api/agent-operator-integration/v1/skills",
+            headers=headers,
+            files=files,
+        )
+        from kweaver._errors import raise_for_status
+
+        raise_for_status(resp)
+        return _unwrap_data(resp.json())
+
+    def delete(self, skill_id: str) -> dict[str, Any]:
+        return _unwrap_data(self._http.delete(f"/api/agent-operator-integration/v1/skills/{skill_id}"))
+
+    def update_status(self, skill_id: str, status: SkillStatus) -> dict[str, Any]:
+        return _unwrap_data(
+            self._http.put(
+                f"/api/agent-operator-integration/v1/skills/{skill_id}/status",
+                json={"status": status},
+            )
+        )
+
+    def content(self, skill_id: str) -> dict[str, Any]:
+        return _unwrap_data(self._http.get(f"/api/agent-operator-integration/v1/skills/{skill_id}/content"))
+
+    def fetch_content(self, skill_id: str) -> str:
+        content = self.content(skill_id)
+        resp = httpx.get(content["url"], follow_redirects=True, timeout=30.0)
+        resp.raise_for_status()
+        return resp.text
+
+    def read_file(self, skill_id: str, rel_path: str) -> dict[str, Any]:
+        return _unwrap_data(
+            self._http.post(
+                f"/api/agent-operator-integration/v1/skills/{skill_id}/files/read",
+                json={"rel_path": rel_path},
+            )
+        )
+
+    def fetch_file(self, skill_id: str, rel_path: str) -> bytes:
+        file_info = self.read_file(skill_id, rel_path)
+        resp = httpx.get(file_info["url"], follow_redirects=True, timeout=30.0)
+        resp.raise_for_status()
+        return resp.content
+
+    def download(self, skill_id: str) -> tuple[str, bytes]:
+        headers = self._http._build_headers()
+        resp = self._http._client.get(
+            f"/api/agent-operator-integration/v1/skills/{skill_id}/download",
+            headers=headers,
+        )
+        from kweaver._errors import raise_for_status
+
+        raise_for_status(resp)
+        filename = f"{skill_id}.zip"
+        content_disposition = resp.headers.get("content-disposition", "")
+        if "filename=" in content_disposition:
+            filename = content_disposition.split("filename=")[-1].strip('"')
+        return filename, resp.content
+
+    def install(self, skill_id: str, directory: str, *, force: bool = False) -> dict[str, Any]:
+        _, archive = self.download(skill_id)
+        install_skill_archive(archive, directory, force=force)
+        return {"directory": str(Path(directory).resolve())}
+
+
+def install_skill_archive(data: bytes, directory: str, *, force: bool = False) -> None:
+    """Extract a skill ZIP archive into ``directory``."""
+    target = Path(directory).resolve()
+    if target.exists() and any(target.iterdir()):
+        if not force:
+            raise ValueError(f"Install target is not empty: {target}. Use --force to replace it.")
+        shutil.rmtree(target)
+    target.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            zf.extractall(target)
+    except Exception:
+        if target.exists():
+            shutil.rmtree(target)
+        raise

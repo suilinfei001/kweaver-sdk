@@ -12,6 +12,7 @@ import { DataSourcesResource } from "./resources/datasources.js";
 import { DataViewsResource } from "./resources/dataviews.js";
 import { KnowledgeNetworksResource } from "./resources/knowledge-networks.js";
 import { BknResource } from "./resources/bkn.js";
+import { SkillsResource } from "./resources/skills.js";
 import { VegaResource } from "./resources/vega.js";
 
 // ── ClientContext ─────────────────────────────────────────────────────────────
@@ -113,6 +114,9 @@ export class KWeaverClient implements ClientContext {
   /** Vega observability platform (catalogs, resources, connector types). */
   readonly vega: VegaResource;
 
+  /** ADP/KWeaver skill registry, market, progressive read, and install helpers. */
+  readonly skills: SkillsResource;
+
   constructor(opts: KWeaverClientOptions = {}) {
     const envDomain = process.env.KWEAVER_BUSINESS_DOMAIN;
 
@@ -175,6 +179,7 @@ export class KWeaverClient implements ClientContext {
     this.datasources = new DataSourcesResource(this);
     this.dataviews = new DataViewsResource(this);
     this.vega = new VegaResource(this);
+    this.skills = new SkillsResource(this);
   }
 
   /**

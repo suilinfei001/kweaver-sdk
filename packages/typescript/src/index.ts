@@ -166,6 +166,45 @@ export type {
 export { BknResource } from "./resources/bkn.js";
 export { ConversationsResource } from "./resources/conversations.js";
 export { ContextLoaderResource } from "./resources/context-loader.js";
+export { SkillsResource } from "./resources/skills.js";
+
+// ── Skills (agent-operator-integration) ──────────────────────────────────────
+export type {
+  SkillStatus,
+  SkillSummary,
+  SkillInfo,
+  SkillFileSummary,
+  SkillContentIndex,
+  SkillFileReadResult,
+  RegisterSkillResult,
+  DeleteSkillResult,
+  UpdateSkillStatusResult,
+  SkillListResult,
+  ListSkillsOptions,
+  ListSkillMarketOptions,
+  GetSkillOptions,
+  RegisterSkillContentOptions,
+  RegisterSkillZipOptions,
+  UpdateSkillStatusOptions,
+  ReadSkillFileOptions,
+  DownloadSkillOptions,
+  DownloadedSkillArchive,
+} from "./api/skills.js";
+export {
+  listSkills,
+  listSkillMarket,
+  getSkill,
+  deleteSkill,
+  updateSkillStatus,
+  registerSkillContent,
+  registerSkillZip,
+  getSkillContentIndex,
+  fetchSkillContent,
+  readSkillFile,
+  fetchSkillFile,
+  downloadSkill,
+  installSkillArchive,
+} from "./api/skills.js";
 
 // ── Data views (mdl-data-model) ────────────────────────────────────────────────
 export type {

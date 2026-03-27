@@ -72,7 +72,7 @@ print(reply.content)
 | **Python CLI** | `pip install kweaver-sdk[cli]` | 备用 CLI，功能对齐，用于测试或纯 Python 环境 |
 | **Python SDK** | `pip install kweaver-sdk` | 程序化 API，`from kweaver import KWeaverClient` |
 
-两套 CLI 命令结构完全一致（`kweaver auth`、`kweaver bkn`、`kweaver agent`、`kweaver context-loader` 等），凭据共享 `~/.kweaver/`。
+两套 CLI 命令结构完全一致（`kweaver auth`、`kweaver bkn`、`kweaver agent`、`kweaver skill`、`kweaver context-loader` 等），凭据共享 `~/.kweaver/`。
 
 ## 认证
 
@@ -255,6 +255,7 @@ kweaver bkn subgraph / search
 kweaver bkn action-execution get
 kweaver bkn action-log list/get/cancel
 kweaver agent list/get/get-by-key/create/update/delete/chat/sessions/history/publish/unpublish
+kweaver skill list/market/get/register/status/delete/content/read-file/download/install
 kweaver vega health/stats/inspect/catalog/resource/connector-type
 kweaver context-loader config set/use/list/show
 kweaver context-loader kn-search/query-object-instance/...

@@ -122,6 +122,10 @@ const queryRows = await client.dataviews.query(viewId, {
 // Context Loader（通过 MCP 对 BKN 做语义搜索）
 const cl      = client.contextLoader(mcpUrl, "bkn-id");
 const results = await cl.search({ query: "高血压 治疗" });
+
+// Skill（注册表/市场/渐进式读取）
+const skills = await client.skills.market({ name: "kweaver" });
+const skillMd = await client.skills.fetchContent("skill-id");
 ```
 
 ## 命令速查
@@ -143,6 +147,7 @@ kweaver bkn subgraph
 kweaver bkn action-execution get
 kweaver bkn action-log list/get/cancel
 kweaver agent list/get/chat/sessions/history
+kweaver skill list/market/get/register/status/delete/content/read-file/download/install
 kweaver context-loader config set/use/list/show
 kweaver context-loader kn-search/query-object-instance/...
 kweaver call <path> [-X METHOD] [-d BODY] [-H header]

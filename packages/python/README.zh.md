@@ -105,6 +105,7 @@ client = KWeaverClient(auth=ConfigAuth(), dry_run=True)
 | Agent | `client.agents` | `list`, `get`, `get_by_key`, `create`, `update`, `delete`, `publish`, `unpublish` |
 | 对话 | `client.conversations` | `send_message`, `list_messages` |
 | 数据视图（mdl-data-model） | `client.dataviews` | `create`, `list`, `get`, `delete`, `find_by_table`, `query`（mdl-uniquery SQL） |
+| Skill | `client.skills` | `list`, `market`, `get`, `register_content`, `register_zip`, `update_status`, `content`, `read_file`, `download`, `install` |
 
 ### Vega（数据平台）
 
