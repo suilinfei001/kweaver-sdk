@@ -3,6 +3,7 @@
 Endpoints (agent-factory v3):
   - List published:   POST /api/agent-factory/v3/published/agent
   - List personal:    GET  /api/agent-factory/v3/personal-space/agent-list
+  - List templates:   GET  /api/agent-factory/v3/published/agent-tpl
   - Get by ID:        GET  /api/agent-factory/v3/agent/{id}
   - Get by key:       GET  /api/agent-factory/v3/agent/by-key/{key}
   - Create:           POST /api/agent-factory/v3/agent
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from kweaver.types import Agent
+from kweaver.types import Agent, AgentTemplate
 
 if TYPE_CHECKING:
     from kweaver._http import HttpClient
@@ -104,6 +105,42 @@ class AgentsResource:
         data = self._http.get(url)
         items = (data if isinstance(data, list) else data.get("entries") or [])
         return [_parse_agent(d) for d in items]
+
+    # ── List templates ────────────────────────────────────────────────────
+
+    def list_templates(
+        self,
+        *,
+        keyword: str | None = None,
+        category_id: str | None = None,
+        pagination_marker: str | None = None,
+        size: int = 48,
+    ) -> list[AgentTemplate]:
+        """List published agent templates.
+
+        Args:
+            keyword: Filter by name substring.
+            category_id: Filter by category ID.
+            pagination_marker: Pagination token for fetching next page.
+            size: Number of results to return (default 48).
+
+        Returns:
+            List of agent templates.
+        """
+        params: dict[str, Any] = {"size": size}
+        if keyword:
+            params["name"] = keyword
+        if category_id:
+            params["category_id"] = category_id
+        if pagination_marker:
+            params["pagination_marker_str"] = pagination_marker
+
+        query_string = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"/api/agent-factory/v3/published/agent-tpl?{query_string}"
+
+        data = self._http.get(url)
+        items = (data if isinstance(data, list) else data.get("entries") or [])
+        return [_parse_template(d) for d in items]
 
     # ── Get by ID ────────────────────────────────────────────────────────
 
@@ -241,4 +278,13 @@ def _parse_agent(d: Any) -> Agent:
         capabilities=d.get("capabilities", []),
         model_config_data=config.get("llms") or d.get("model_config"),
         conversation_count=d.get("conversation_count", 0),
+    )
+
+
+def _parse_template(d: Any) -> AgentTemplate:
+    return AgentTemplate(
+        id=str(d.get("tpl_id") or d.get("id", "")),
+        name=d.get("name", ""),
+        description=d.get("profile") or d.get("description", ""),
+        config=d.get("config"),
     )
