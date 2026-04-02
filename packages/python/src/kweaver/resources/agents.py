@@ -156,6 +156,13 @@ class AgentsResource:
         data = self._http.get(f"/api/agent-factory/v3/agent/by-key/{key}")
         return _parse_agent(data)
 
+    # ── Get template ─────────────────────────────────────────────────────
+
+    def get_template(self, id: str) -> AgentTemplate:
+        """Get published agent template by ID."""
+        data = self._http.get(f"/api/agent-factory/v3/published/agent-tpl/{id}")
+        return _parse_template(data)
+
     # ── Create ───────────────────────────────────────────────────────────
 
     def create(
