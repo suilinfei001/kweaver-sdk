@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import datetime
 from functools import wraps
+from pathlib import Path
 from typing import Any
 
 import click
@@ -14,6 +16,17 @@ from kweaver._auth import ConfigAuth, PasswordAuth, TokenAuth, _env_tls_insecure
 from kweaver.config.store import PlatformStore
 from kweaver._client import KWeaverClient
 from kweaver._errors import KWeaverError, AuthenticationError, AuthorizationError, NotFoundError, DryRunIntercepted
+
+
+def _generate_timestamped_path(path: str) -> str:
+    """生成带时间戳的文件路径（与TS一致）."""
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    path_obj = Path(path)
+
+    if str(path).endswith("/"):
+        return str(path_obj / f"agent-config-{timestamp}.json")
+
+    return str(path_obj.parent / f"{path_obj.stem}-{timestamp}{path_obj.suffix}")
 
 
 def make_client(*, debug: bool = False, dry_run: bool = False) -> KWeaverClient:
