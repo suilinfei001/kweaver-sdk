@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from kweaver.types import Agent, AgentTemplate
+from kweaver.types import Agent, AgentCategory, AgentTemplate
 
 if TYPE_CHECKING:
     from kweaver._http import HttpClient
@@ -162,6 +162,21 @@ class AgentsResource:
         """Get published agent template by ID."""
         data = self._http.get(f"/api/agent-factory/v3/published/agent-tpl/{id}")
         return _parse_template(data)
+
+    # ── List categories ──────────────────────────────────────────────────
+
+    def list_categories(self) -> list[AgentCategory]:
+        """List agent categories."""
+        data = self._http.get("/api/agent-factory/v3/category")
+        items = (data if isinstance(data, list) else data.get("entries") or [])
+        return [
+            AgentCategory(
+                id=str(c.get("id", "")),
+                name=c.get("name", ""),
+                description=c.get("description", ""),
+            )
+            for c in items
+        ]
 
     # ── Create ───────────────────────────────────────────────────────────
 
