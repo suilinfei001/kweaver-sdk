@@ -1,14 +1,15 @@
 """SDK resource: agents (agent-factory service).
 
 Endpoints (agent-factory v3):
-  - List published: POST /api/agent-factory/v3/published/agent
-  - Get by ID:      GET  /api/agent-factory/v3/agent/{id}
-  - Get by key:     GET  /api/agent-factory/v3/agent/by-key/{key}
-  - Create:         POST /api/agent-factory/v3/agent
-  - Update:         PUT  /api/agent-factory/v3/agent/{id}
-  - Delete:         DELETE /api/agent-factory/v3/agent/{id}
-  - Publish:        POST /api/agent-factory/v3/agent/{id}/publish
-  - Unpublish:      PUT  /api/agent-factory/v3/agent/{id}/unpublish
+  - List published:   POST /api/agent-factory/v3/published/agent
+  - List personal:    GET  /api/agent-factory/v3/personal-space/agent-list
+  - Get by ID:        GET  /api/agent-factory/v3/agent/{id}
+  - Get by key:       GET  /api/agent-factory/v3/agent/by-key/{key}
+  - Create:           POST /api/agent-factory/v3/agent
+  - Update:           PUT  /api/agent-factory/v3/agent/{id}
+  - Delete:           DELETE /api/agent-factory/v3/agent/{id}
+  - Publish:          POST /api/agent-factory/v3/agent/{id}/publish
+  - Unpublish:        PUT  /api/agent-factory/v3/agent/{id}/unpublish
 """
 
 from __future__ import annotations
@@ -65,6 +66,43 @@ class AgentsResource:
             if isinstance(data, list)
             else (data.get("entries") or data.get("data") or [])
         )
+        return [_parse_agent(d) for d in items]
+
+    # ── List personal space agents ────────────────────────────────────────
+
+    def list_personal(
+        self,
+        *,
+        keyword: str | None = None,
+        pagination_marker: str | None = None,
+        publish_status: str | None = None,
+        publish_to_be: str | None = None,
+        size: int = 48,
+    ) -> list[Agent]:
+        """List personal space agents.
+
+        Args:
+            keyword: Filter by name substring.
+            pagination_marker: Pagination token for fetching next page.
+            publish_status: Filter by publish status.
+            publish_to_be: Filter by publish destination.
+            size: Number of results to return (default 48).
+        """
+        params: dict[str, Any] = {"size": size}
+        if keyword:
+            params["name"] = keyword
+        if pagination_marker:
+            params["pagination_marker_str"] = pagination_marker
+        if publish_status:
+            params["publish_status"] = publish_status
+        if publish_to_be:
+            params["publish_to_be"] = publish_to_be
+
+        query_string = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"/api/agent-factory/v3/personal-space/agent-list?{query_string}"
+
+        data = self._http.get(url)
+        items = (data if isinstance(data, list) else data.get("entries") or [])
         return [_parse_agent(d) for d in items]
 
     # ── Get by ID ────────────────────────────────────────────────────────
