@@ -247,15 +247,19 @@ class AgentsResource:
 
     # ── Publish ──────────────────────────────────────────────────────────
 
-    def publish(self, id: str, *, business_domain_id: str | None = None) -> dict[str, Any]:
+    def publish(self, id: str, *, category_id: str | None = None) -> dict[str, Any]:
         """Publish an agent, making it available for chat.
 
         Returns:
             Dict with ``release_id``, ``version``, ``published_at``, etc.
         """
-        body: dict[str, Any] = {"agent_id": id}
-        if business_domain_id is not None:
-            body["business_domain_id"] = business_domain_id
+        body: dict[str, Any] = {
+            "business_domain_id": "bd_public",
+            "category_ids": [category_id] if category_id else [],
+            "description": "",
+            "publish_to_where": ["square"],
+            "pms_control": None,
+        }
         data = self._http.post(f"/api/agent-factory/v3/agent/{id}/publish", json=body)
         return data or {}
 
