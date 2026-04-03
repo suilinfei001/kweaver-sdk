@@ -5,11 +5,13 @@ description: >-
   语义搜索、执行 Action、Agent CRUD 与对话、Trace 数据分析。
   操作 Skill 管理模块 — 注册 Skill、市场查找、渐进式读取、下载与安装。
   操作 Vega 可观测平台 — 查询 Catalog/资源/连接器类型、健康巡检。
+  操作执行工厂 — 算子、工具箱、MCP Server 管理与导入导出。
   当用户提到"知识网络"、"知识图谱"、"查询对象类"、
   "执行 Action"、"有哪些 Agent"、"创建 Agent"、"跟 Agent 对话"、"列出所有 Agent 模板"、"列出我创建的Agent"、
   "列出私人空间的Agent"、"Skill"、"技能包"、"注册 Skill"、"安装 Skill"、"读取 SKILL.md"、
   "数据源"、"数据视图"、"原子视图"、"Catalog"、"Vega"、
-  "健康检查"、"巡检"、"trace"、"证据链"、"数据流追踪"、"数据来源"、"数据怎么得到的"等意图时自动使用。
+  "健康检查"、"巡检"、"trace"、"证据链"、"数据流追踪"、"数据来源"、"数据怎么得到的"、
+  "执行工厂"、"算子"、"工具箱"、"MCP"等意图时自动使用。
 allowed-tools: Bash(kweaver *), Bash(npx kweaver *)
 argument-hint: [自然语言指令]
 ---
@@ -70,6 +72,7 @@ kweaver <command> [subcommand] [options]
 | `vega` | Vega 可观测平台 | `vega health`, `vega catalog list`, `vega resource list` | `references/vega.md` |
 | `context-loader` | MCP 分层检索 | `context-loader config show`, `context-loader kn-search <query>` | `references/context-loader.md` |
 | `call` | 通用 API 调用 | `call <url> [-X POST] [-d '...']`（可用 `curl` 别名；支持 `--url`、`--data-raw` 等，见 `kweaver --help`） | `references/call.md` |
+| `exec` | 执行工厂（算子/工具箱/MCP/导入导出） | `exec operator|toolbox|mcp|impex <subcommand>` | `references/exec.md` |
 
 ## 操作指南
 

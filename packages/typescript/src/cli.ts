@@ -7,6 +7,7 @@ import { runConfigCommand } from "./commands/config.js";
 import { runContextLoaderCommand } from "./commands/context-loader.js";
 import { runDsCommand } from "./commands/ds.js";
 import { runDataviewCommand } from "./commands/dataview.js";
+import { runExecCommand } from "./commands/exec.js";
 import { runSkillCommand } from "./commands/skill.js";
 import { runTokenCommand } from "./commands/token.js";
 import { runVegaCommand } from "./commands/vega.js";
@@ -103,6 +104,11 @@ Usage:
   kweaver context-loader query-object-instance|query-instance-subgraph|get-logic-properties|get-action-info ...
   (alias: kweaver context ...)
 
+  kweaver exec operator <command>    Operator management
+  kweaver exec toolbox <command>     Toolbox management
+  kweaver exec mcp <command>         MCP server management
+  kweaver exec impex <command>       Import/Export operations
+
 Commands:
   auth           Login, list, inspect, and switch saved platform auth profiles
   token          Print the current access token, refreshing it first if needed
@@ -116,6 +122,7 @@ Commands:
   skill          Skill registry and market (register, search, progressive read, download/install)
   vega           Vega observability (catalog, resource, connector-type, health/stats/inspect)
   context-loader Context-loader MCP (config, tools, resources, prompts, kn-search, query-*, etc.)
+  exec           Execution factory (operator, toolbox, mcp, impex)
   help           Show this message`);
 }
 
@@ -179,6 +186,10 @@ export async function run(argv: string[]): Promise<number> {
 
   if (command === "context-loader" || command === "context") {
     return runContextLoaderCommand(rest);
+  }
+
+  if (command === "exec") {
+    return runExecCommand(rest);
   }
 
   console.error(`Unknown command: ${command}`);
