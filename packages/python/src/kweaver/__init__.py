@@ -198,7 +198,7 @@ def agents(
             print(agent.name)
     """
     client = _require_client()
-    return client.agents.list(keyword=keyword, status=status, limit=limit)
+    return client.agents.list(keyword=keyword, status=status, size=limit)
 
 
 def chat(

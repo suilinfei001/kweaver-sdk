@@ -577,24 +577,19 @@ export function parseAgentHistoryArgs(args: string[]): AgentHistoryOptions {
 }
 
 export interface AgentTraceOptions {
-  agentId: string;
   conversationId: string;
   pretty: boolean;
 }
 
 export function parseAgentTraceArgs(args: string[]): AgentTraceOptions {
-  const agentId = args[0];
-  if (!agentId || agentId.startsWith("-")) {
-    throw new Error("Missing agent_id");
-  }
-  const conversationId = args[1];
+  const conversationId = args[0];
   if (!conversationId || conversationId.startsWith("-")) {
     throw new Error("Missing conversation_id");
   }
 
   let pretty = true;
 
-  for (let i = 2; i < args.length; i += 1) {
+  for (let i = 1; i < args.length; i += 1) {
     const arg = args[i];
 
     if (arg === "--help" || arg === "-h") {
@@ -614,7 +609,7 @@ export function parseAgentTraceArgs(args: string[]): AgentTraceOptions {
     throw new Error(`Unsupported agent trace argument: ${arg}`);
   }
 
-  return { agentId, conversationId, pretty };
+  return { conversationId, pretty };
 }
 
 export async function runAgentCommand(args: string[]): Promise<number> {
@@ -734,7 +729,7 @@ List published agents from the agent-factory API.
 
 Options:
   --name <text>             Filter by name
-  --pagination-marker <str> Pagination marker for next page
+  --pagination-marker <str> Pagination marker (default: "")
   --size <n>                Max items to return (default: 48)
   --category-id <id>        Filter by category
   --custom-space-id <id>    Filter by custom space
@@ -829,7 +824,7 @@ Options:
     if (rest.length === 1 && (rest[0] === "--help" || rest[0] === "-h")) {
       console.log(`kweaver agent history <agent_id> <conversation_id> [options]
 
-Show conversation detail (messages) for an agent.
+Show message history for a conversation.
 
 Options:
   -bd, --biz-domain <value> Business domain (default: bd_public)
@@ -840,7 +835,7 @@ Options:
 
   if (subcommand === "trace") {
     if (rest.length === 1 && (rest[0] === "--help" || rest[0] === "-h")) {
-      console.log(`kweaver agent trace <agent_id> <conversation_id> [options]
+      console.log(`kweaver agent trace <conversation_id> [options]
 
 Get trace data for a conversation.
 
@@ -1118,7 +1113,7 @@ async function runAgentHistoryCommand(args: string[]): Promise<number> {
     if (error instanceof Error && error.message === "help") {
       console.log(`kweaver agent history <agent_id> <conversation_id> [options]
 
-Show conversation detail (messages) for an agent.
+Show message history for a conversation.
 
 Options:
   -bd, --biz-domain <value> Business domain (default: bd_public)
@@ -1168,7 +1163,7 @@ async function runAgentTraceCommand(args: string[]): Promise<number> {
     options = parseAgentTraceArgs(args);
   } catch (error) {
     if (error instanceof Error && error.message === "help") {
-      console.log(`kweaver agent trace <agent_id> <conversation_id> [options]
+      console.log(`kweaver agent trace <conversation_id> [options]
 
 Get trace data for a conversation.
 
@@ -1186,7 +1181,6 @@ Options:
     const body = await getTracesByConversation({
       baseUrl: token.baseUrl,
       accessToken: token.accessToken,
-      agentId: options.agentId,
       conversationId: options.conversationId,
     });
     console.log(formatCallOutput(body, options.pretty));
