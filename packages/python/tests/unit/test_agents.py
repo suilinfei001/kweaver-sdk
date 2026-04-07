@@ -66,15 +66,15 @@ def test_list_agents_with_filters(capture: RequestCapture):
     assert "/published/agent" in capture.last_url()
 
 
-def test_list_agents_with_offset_limit(capture: RequestCapture):
+def test_list_agents_with_pagination_marker(capture: RequestCapture):
     def handler(req: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"entries": []})
 
     client = make_client(handler, capture)
-    client.agents.list(offset=10, limit=20)
+    client.agents.list(pagination_marker_str="abc123", size=20)
     body = capture.last_body()
-    assert body["offset"] == 10
-    assert body["limit"] == 20
+    assert body["pagination_marker_str"] == "abc123"
+    assert body["size"] == 20
 
 
 def test_list_agents_raw_list():

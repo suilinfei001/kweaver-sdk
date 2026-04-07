@@ -32,8 +32,8 @@ class AgentsResource:
         *,
         keyword: str | None = None,
         status: str | None = None,
-        offset: int = 0,
-        limit: int = 50,
+        pagination_marker_str: str = "",
+        size: int = 48,
     ) -> list[Agent]:
         """List published agents.
 
@@ -41,12 +41,12 @@ class AgentsResource:
             keyword: Filter by name substring.
             status: Ignored (kept for API compatibility). The published
                     endpoint only returns published agents.
-            offset: Pagination offset (default 0).
-            limit: Max items to return (default 50).
+            pagination_marker_str: Pagination marker for next page (default "").
+            size: Max items to return (default 48).
         """
         body: dict[str, Any] = {
-            "offset": offset,
-            "limit": limit,
+            "pagination_marker_str": pagination_marker_str,
+            "size": size,
             "name": keyword or "",
             "category_id": "",
             "custom_space_id": "",

@@ -8,8 +8,8 @@ export interface ListAgentsOptions {
   accessToken: string;
   businessDomain?: string;
   name?: string;
-  offset?: number;
-  limit?: number;
+  pagination_marker_str?: string;
+  size?: number;
   category_id?: string;
   custom_space_id?: string;
   is_to_square?: number;
@@ -21,8 +21,8 @@ export async function listAgents(options: ListAgentsOptions): Promise<string> {
     accessToken,
     businessDomain = "bd_public",
     name = "",
-    offset = 0,
-    limit = 50,
+    pagination_marker_str = "",
+    size = 48,
     category_id = "",
     custom_space_id = "",
     is_to_square = 1,
@@ -32,8 +32,8 @@ export async function listAgents(options: ListAgentsOptions): Promise<string> {
   const url = `${base}/api/agent-factory/v3/published/agent`;
 
   const body = JSON.stringify({
-    offset,
-    limit,
+    pagination_marker_str,
+    size,
     category_id,
     name,
     custom_space_id,
